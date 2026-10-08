@@ -111,12 +111,12 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <script>
   // ====== ĐIỀN 2 GIÁ TRỊ NÀY (Supabase > Project Settings > API) ======
-  const SUPABASE_URL = "https://BocThamCap.supabase.co";
+  const SUPABASE_URL = "https://gzjtkwnwalttzkbvhkyl.supabase.co";
   const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd6anRrd253YWx0dHprYnZoa3lsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE0MjA2NTAsImV4cCI6MjEwNjk5NjY1MH0.JIGecYmMJzxl76L4gOoOODMVDk0RIi-QAQhifg3vdD0";
   // ====================================================================
 
   const $ = (id) => document.getElementById(id);
-  const configured = !SUPABASE_URL.includes("BocThamCap") && !SUPABASE_ANON_KEY.includes("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd6anRrd253YWx0dHprYnZoa3lsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE0MjA2NTAsImV4cCI6MjEwNjk5NjY1MH0.JIGecYmMJzxl76L4gOoOODMVDk0RIi-QAQhifg3vdD0");
+  const configured = !SUPABASE_URL.includes("YOUR-PROJECT") && !SUPABASE_ANON_KEY.includes("YOUR-ANON");
   if (!configured) $("setupWarn").style.display = "block";
 
   const db = configured ? supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
