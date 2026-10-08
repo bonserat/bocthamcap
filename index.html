@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bốc thăm ghép cặp</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #eef3fa;
+    --paper: #ffffff;
+    --ink: #17263f;
+    --muted: #5f6f8a;
+    --line: #d5dfee;
+    --accent: #2b59e6;
+    --accent-ink: #ffffff;
+    --win: #ffc531;
+    --ok: #17875a;
+    --err: #c2352b;
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "Be Vietnam Pro", system-ui, -apple-system, "Segoe UI", sans-serif;
+    line-height: 1.55;
+  }
+  main { max-width: 560px; margin: 0 auto; padding: 28px 18px 56px; }
+  h1 { font-size: 1.7rem; line-height: 1.2; margin: 0 0 6px; font-weight: 800; letter-spacing: -0.01em; }
+  .sub { color: var(--muted); margin: 0 0 24px; }
+
+  .panel { background: var(--paper); border: 1px solid var(--line); border-radius: 14px; padding: 20px; margin-bottom: 18px; }
+  label { display: block; font-weight: 500; margin: 0 0 6px; }
+  .field + .field { margin-top: 14px; }
+  select, input {
+    width: 100%; font: inherit; color: var(--ink);
+    padding: 11px 12px; border: 1px solid var(--line); border-radius: 10px; background: #fff;
+  }
+  select:focus-visible, input:focus-visible, button:focus-visible { outline: 3px solid #9db4f7; outline-offset: 2px; }
+
+  button.draw {
+    width: 100%; margin-top: 18px; font: inherit; font-weight: 700; font-size: 1.05rem;
+    padding: 14px; border: 0; border-radius: 12px; cursor: pointer;
+    background: var(--accent); color: var(--accent-ink);
+  }
+  button.draw:disabled { background: #a9b6d3; cursor: not-allowed; }
+
+  .msg { margin-top: 14px; font-weight: 500; min-height: 1.5em; }
+  .msg.err { color: var(--err); }
+  .msg.ok { color: var(--ok); }
+
+  /* Khung hiện kết quả: tên chạy nhanh rồi dừng lại ở người được ghép */
+  .reveal { display: none; text-align: center; padding: 26px 16px; border-radius: 12px; background: var(--ink); color: #fff; margin-top: 18px; }
+  .reveal.show { display: block; }
+  .reveal small { display: block; color: #b8c5de; margin-bottom: 8px; }
+  .reveal .name { font-size: 2rem; font-weight: 800; line-height: 1.2; min-height: 2.4rem; }
+  .reveal.done .name { color: var(--win); animation: land .45s ease-out; }
+  @keyframes land { from { transform: scale(.82); opacity: .4; } to { transform: scale(1); opacity: 1; } }
+
+  h2 { font-size: 1.05rem; margin: 0 0 12px; }
+  ul.board { list-style: none; margin: 0; padding: 0; }
+  ul.board li { display: flex; justify-content: space-between; gap: 12px; padding: 11px 0; border-top: 1px solid var(--line); }
+  ul.board li:first-child { border-top: 0; }
+  .cap { font-weight: 700; }
+  .res { text-align: right; }
+  .res.wait { color: var(--muted); }
+  .res.got { color: var(--ok); font-weight: 700; }
+  .count { color: var(--muted); font-size: .9rem; margin-top: 10px; }
+
+  .setup-warn { background: #fff4d6; border: 1px solid #f0d58a; padding: 12px 14px; border-radius: 10px; display: none; }
+
+  @media (prefers-reduced-motion: reduce) { .reveal.done .name { animation: none; } }
+</style>
+</head>
+<body>
+<main>
+  <h1>Bốc thăm ghép cặp</h1>
+  <p class="sub">Mỗi đội trưởng chỉ được bốc một lần. Kết quả là ngẫu nhiên và hiện công khai bên dưới.</p>
+
+  <div id="setupWarn" class="setup-warn">Chưa điền SUPABASE_URL và SUPABASE_ANON_KEY trong file index.html.</div>
+
+  <section class="panel" id="drawPanel">
+    <div class="field">
+      <label for="captain">Bạn là ai?</label>
+      <select id="captain"><option value="">Đang tải danh sách…</option></select>
+    </div>
+    <div class="field">
+      <label for="pin">Mã PIN của bạn</label>
+      <input id="pin" type="password" inputmode="text" autocomplete="off" placeholder="Nhập mã PIN được gửi riêng cho bạn">
+    </div>
+    <button class="draw" id="drawBtn" disabled>Bốc thăm</button>
+    <div class="msg" id="msg" role="status" aria-live="polite"></div>
+
+    <div class="reveal" id="reveal" aria-live="polite">
+      <small>Bạn được ghép cặp với</small>
+      <div class="name" id="revealName"></div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>Kết quả</h2>
+    <ul class="board" id="board"></ul>
+    <div class="count" id="count"></div>
+  </section>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script>
+  // ====== ĐIỀN 2 GIÁ TRỊ NÀY (Supabase > Project Settings > API) ======
+  const SUPABASE_URL = "https://BocThamCap.supabase.co";
+  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd6anRrd253YWx0dHprYnZoa3lsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE0MjA2NTAsImV4cCI6MjEwNjk5NjY1MH0.JIGecYmMJzxl76L4gOoOODMVDk0RIi-QAQhifg3vdD0";
+  // ====================================================================
+
+  const $ = (id) => document.getElementById(id);
+  const configured = !SUPABASE_URL.includes("BocThamCap") && !SUPABASE_ANON_KEY.includes("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd6anRrd253YWx0dHprYnZoa3lsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE0MjA2NTAsImV4cCI6MjEwNjk5NjY1MH0.JIGecYmMJzxl76L4gOoOODMVDk0RIi-QAQhifg3vdD0");
+  if (!configured) $("setupWarn").style.display = "block";
+
+  const db = configured ? supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
+  let captains = [], members = [], pairs = [];
+  let drawing = false;
+
+  const memberName = (id) => (members.find((m) => m.id === id) || {}).name || "?";
+  const hasDrawn = (captainId) => pairs.some((p) => p.captain_id === captainId);
+
+  async function load() {
+    if (!db) return;
+    const [c, m, p] = await Promise.all([
+      db.from("captains").select("id,name").order("id"),
+      db.from("members").select("id,name").order("id"),
+      db.from("pairs").select("captain_id,member_id"),
+    ]);
+    if (c.error || m.error || p.error) {
+      showMsg("Không tải được dữ liệu. Kiểm tra lại cấu hình Supabase.", "err");
+      return;
+    }
+    captains = c.data; members = m.data; pairs = p.data;
+    render();
+  }
+
+  function render() {
+    // Danh sách chọn đội trưởng
+    const sel = $("captain");
+    const keep = sel.value;
+    sel.innerHTML = "";
+    const first = document.createElement("option");
+    first.value = ""; first.textContent = "Chọn tên của bạn";
+    sel.appendChild(first);
+    captains.forEach((c) => {
+      const o = document.createElement("option");
+      o.value = c.id;
+      o.textContent = c.name + (hasDrawn(c.id) ? " (đã bốc)" : "");
+      sel.appendChild(o);
+    });
+    sel.value = keep;
+    updateButton();
+
+    // Bảng kết quả
+    const board = $("board");
+    board.innerHTML = "";
+    captains.forEach((c) => {
+      const li = document.createElement("li");
+      const left = document.createElement("span");
+      left.className = "cap"; left.textContent = c.name;
+      const right = document.createElement("span");
+      const pair = pairs.find((p) => p.captain_id === c.id);
+      if (pair) { right.className = "res got"; right.textContent = memberName(pair.member_id); }
+      else { right.className = "res wait"; right.textContent = "Chưa bốc"; }
+      li.append(left, right);
+      board.appendChild(li);
+    });
+    $("count").textContent = "Đã bốc: " + pairs.length + "/" + captains.length;
+  }
+
+  function showMsg(text, kind) {
+    const el = $("msg");
+    el.textContent = text;
+    el.className = "msg" + (kind ? " " + kind : "");
+  }
+
+  function updateButton() {
+    const id = Number($("captain").value);
+    const ok = configured && id && $("pin").value.trim().length > 0 && !drawing && !hasDrawn(id);
+    $("drawBtn").disabled = !ok;
+    if (id && hasDrawn(id) && !drawing) {
+      showMsg("Bạn đã bốc thăm rồi. Xem kết quả ở bảng bên dưới.", "ok");
+    }
+  }
+
+  // Hiệu ứng: tên chạy nhanh rồi dừng ở người được chọn (kết quả đã quyết định trên server)
+  function animateReveal(finalName) {
+    return new Promise((resolve) => {
+      const box = $("reveal"), nameEl = $("revealName");
+      box.classList.remove("done"); box.classList.add("show");
+      const pool = members.map((m) => m.name);
+      const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      if (reduce || pool.length === 0) {
+        nameEl.textContent = finalName; box.classList.add("done"); return resolve();
+      }
+      let i = 0, delay = 60;
+      (function tick() {
+        nameEl.textContent = pool[i++ % pool.length];
+        delay *= 1.12;
+        if (delay < 420) setTimeout(tick, delay);
+        else { nameEl.textContent = finalName; box.classList.add("done"); resolve(); }
+      })();
+    });
+  }
+
+  async function onDraw() {
+    const id = Number($("captain").value);
+    const pin = $("pin").value.trim();
+    if (!id || !pin || drawing || hasDrawn(id)) return;
+
+    drawing = true; updateButton();
+    showMsg("Đang bốc thăm…");
+    const { data, error } = await db.rpc("draw_partner", { p_captain_id: id, p_pin: pin });
+    if (error || !data) {
+      drawing = false; updateButton();
+      showMsg("Có lỗi kết nối. Hãy kiểm tra mạng rồi thử lại.", "err");
+      return;
+    }
+    if (!data.ok) {
+      drawing = false;
+      showMsg(data.error, "err");
+      await load();
+      return;
+    }
+    showMsg("");
+    await animateReveal(data.member_name);
+    $("pin").value = "";
+    drawing = false;
+    showMsg("Xong! Bạn không thể bốc lại lần nữa.", "ok");
+    await load();
+  }
+
+  $("captain").addEventListener("change", () => { showMsg(""); updateButton(); });
+  $("pin").addEventListener("input", updateButton);
+  $("pin").addEventListener("keydown", (e) => { if (e.key === "Enter") onDraw(); });
+  $("drawBtn").addEventListener("click", onDraw);
+
+  if (db) {
+    load();
+    // Cập nhật kết quả theo thời gian thực, kèm làm mới dự phòng mỗi 8 giây
+    db.channel("pairs-changes")
+      .on("postgres_changes", { event: "*", schema: "public", table: "pairs" }, load)
+      .subscribe();
+    setInterval(() => { if (!drawing) load(); }, 8000);
+  } else {
+    render();
+  }
+</script>
+</body>
+</html>
