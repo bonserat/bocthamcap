@@ -346,6 +346,25 @@
   button.regret { padding: 14px 20px; border: 0; border-radius: 14px; font-weight: 700; font-size: 1.05rem; background: var(--gold); color: #1d1300; max-width: 100%; }
   #fx { position: fixed; inset: 0; z-index: 60; pointer-events: none; }
 
+  /* ---------- Danh sách người chơi ---------- */
+  .roster { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .rcol h3 { font-family: var(--display); font-size: .95rem; margin: 0 0 10px; color: var(--muted); font-weight: 500; }
+  .rcol h3 b { color: var(--ink); }
+  .rcol ul { list-style: none; margin: 0 0 10px; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+  .rp { display: flex; align-items: center; gap: 10px; padding: 7px 8px 7px 7px; border-radius: 14px; background: rgba(255,255,255,.035); border: 1px solid var(--line); min-width: 0; }
+  .rp .av { width: 32px; height: 32px; border-radius: 10px; font-size: .9rem; }
+  .rp .nm { flex: 1; min-width: 0; font-size: .95rem; }
+  .rp.new { animation: rise .45s cubic-bezier(.2,.8,.2,1) both; }
+  button.rm { flex: none; width: 28px; height: 28px; border-radius: 9px; border: 0; background: transparent; color: var(--muted); font-size: 1.1rem; line-height: 1; }
+  button.rm:hover { background: rgba(255,122,122,.15); color: var(--err); }
+  .radd { display: flex; gap: 6px; }
+  .radd input { padding: 9px 12px; font-size: .95rem; border-radius: 12px; min-width: 0; }
+  .radd button { flex: none; padding: 0 14px; border: 0; border-radius: 12px; font-weight: 700; background: var(--blue); color: #06122b; }
+  .radd button:disabled { opacity: .5; cursor: not-allowed; }
+  .rwarn { margin: 12px 0 0; font-size: .9rem; color: var(--amber); }
+  .rlock { margin: 12px 0 0; font-size: .88rem; color: var(--muted); }
+  @media (max-width: 480px) { .roster { grid-template-columns: 1fr; } }
+
   @media (max-width: 420px) {
     .glass { padding: 18px; }
     .av { width: 36px; height: 36px; border-radius: 12px; }
@@ -384,6 +403,19 @@
 
   <section class="glass">
     <div class="bh">
+      <h2>Danh sách</h2>
+      <span class="chip" id="rosterChip"></span>
+    </div>
+    <div class="roster">
+      <div class="rcol" id="colCap"></div>
+      <div class="rcol" id="colMem"></div>
+    </div>
+    <p class="rwarn" id="rosterWarn" hidden></p>
+    <p class="rlock" id="rosterLock" hidden>Đã bốc thăm. Muốn sửa danh sách thì Reset bốc thăm trước.</p>
+  </section>
+
+  <section class="glass">
+    <div class="bh">
       <h2>Kết quả bốc thăm</h2>
       <span class="chip live" id="live"><i></i><span id="liveTxt">Tự làm mới</span></span>
     </div>
@@ -414,7 +446,7 @@
 
   <footer>
     Kết quả được chọn ngẫu nhiên trên máy chủ, không ai can thiệp được.<br>
-    © 2026 Web designed by Nguyennvp.
+    © 2026 Nguyennvp. Bản quyền thuộc về Nguyennvp.
   </footer>
 </main>
 
@@ -681,7 +713,7 @@
     $("count").textContent = "Đã bốc " + pairs.length + "/" + captains.length +
       (captains.length && pairs.length === captains.length ? ". Đủ cặp rồi, chia trận thôi!" : "");
 
-    const sig = captains.map((c) => c.id).join(",") + "|" + pairs.map((p) => p.captain_id + ":" + p.member_id).join(",");
+    const sig = captains.map((c) => c.id + c.name).join(",") + members.map((m) => m.id + m.name).join(",") + "|" + pairs.map((p) => p.captain_id + ":" + p.member_id).join(",");
     if (sig === boardSig) return;
     const first = boardSig === "";
     boardSig = sig;
@@ -991,8 +1023,94 @@
     });
   }
 
+  let rosterSig = "", rosterBuilt = false;
+  const addDraft = { captain: "", member: "" };
+  const newRoster = new Set();
+
+  function renderRoster() {
+    const locked = pairs.length > 0;
+    const sig = captains.map((c) => c.id + ":" + c.name).join(",") + "|" +
+      members.map((m) => m.id + ":" + m.name).join(",") + "|" + locked;
+    $("rosterChip").textContent = (captains.length + members.length) + " người";
+    const uneven = captains.length !== members.length;
+    $("rosterWarn").hidden = !uneven;
+    $("rosterWarn").textContent = uneven
+      ? "Số đội trưởng (" + captains.length + ") và thành viên (" + members.length + ") phải bằng nhau." : "";
+    $("rosterLock").hidden = !locked;
+    if (sig === rosterSig) return;
+    rosterSig = sig;
+
+    const fill = (box, kind, title, list, colorOf) => {
+      box.innerHTML = "";
+      const h = document.createElement("h3");
+      h.innerHTML = "<b></b> · " + list.length;
+      h.querySelector("b").textContent = title;
+      const ul = document.createElement("ul");
+      list.forEach((x, i) => {
+        const li = document.createElement("li");
+        li.className = "rp" + (newRoster.has(kind + x.id) ? " new" : "");
+        const nm = document.createElement("span"); nm.className = "nm"; nm.textContent = x.name;
+        li.append(avatar(initial(x.name), colorOf(i)), nm);
+        if (!locked) {
+          const rm = document.createElement("button");
+          rm.className = "rm"; rm.textContent = "×"; rm.title = "Xóa " + x.name;
+          rm.setAttribute("aria-label", "Xóa " + x.name);
+          rm.onclick = () => removePerson(kind, x);
+          li.appendChild(rm);
+        }
+        ul.appendChild(li);
+      });
+      box.append(h, ul);
+      if (!locked) {
+        const row = document.createElement("div"); row.className = "radd";
+        const inp = document.createElement("input");
+        inp.type = "text"; inp.maxLength = 40; inp.autocomplete = "off";
+        inp.placeholder = kind === "captain" ? "Thêm đội trưởng" : "Thêm thành viên";
+        inp.value = addDraft[kind];
+        const b = document.createElement("button"); b.textContent = "Thêm";
+        inp.addEventListener("input", () => { addDraft[kind] = inp.value; });
+        const go = () => addPerson(kind, inp, b);
+        b.onclick = go;
+        inp.addEventListener("keydown", (e) => { if (e.key === "Enter") go(); });
+        row.append(inp, b);
+        box.appendChild(row);
+      }
+    };
+    fill($("colCap"), "captain", "Đội trưởng", captains, (i) => "c" + (i % 4));
+    fill($("colMem"), "member", "Thành viên", members, () => "gold");
+    newRoster.clear();
+    rosterBuilt = true;
+  }
+
+  async function addPerson(kind, inp, btn) {
+    const name = inp.value.trim().replace(/\s+/g, " ");
+    if (!name) { inp.focus(); return; }
+    btn.disabled = true;
+    const { data, error } = await db.rpc("add_person", { p_kind: kind, p_name: name });
+    btn.disabled = false;
+    if (error || !data) { toast("Lỗi kết nối, thử lại nha.", "⚠️"); return; }
+    if (!data.ok) { toast(data.error, "⚠️"); return; }
+    addDraft[kind] = "";
+    newRoster.add(kind + data.id);
+    rosterSig = "";
+    await load();
+    const again = document.querySelector("#" + (kind === "captain" ? "colCap" : "colMem") + " .radd input");
+    if (again) again.focus();
+  }
+
+  async function removePerson(kind, x) {
+    const ok = await askModal("Xóa " + x.name + "?", kind === "captain" ? "Xóa khỏi danh sách đội trưởng." : "Xóa khỏi danh sách thành viên.", "Xóa", "Thôi");
+    if (!ok) return;
+    const { data, error } = await db.rpc("remove_person", { p_kind: kind, p_id: x.id });
+    if (error || !data) { toast("Lỗi kết nối, thử lại nha.", "⚠️"); return; }
+    if (!data.ok) { toast(data.error, "⚠️"); return; }
+    rosterSig = "";
+    await load();
+  }
+
   function render() {
     renderWindow();
+    renderRoster();
     renderBoard();
     renderFixtures();
     renderAdmin();
@@ -1188,7 +1306,7 @@
     }
     nameEl.textContent = res.member_name;
     nameEl.classList.add("done");
-    line.textContent = "Xin chia buồn cùng " + res.captain_name + "!" + " Đen thế.";
+    line.textContent = "Xin chia buồn cùng " + res.captain_name + "!";
     fanfare();
     startFx(8000);
     if (!reduce) setTimeout(() => $("stage").classList.remove("flash"), 8000);
@@ -1280,6 +1398,8 @@
     db.channel("live-changes")
       .on("postgres_changes", { event: "*", schema: "public", table: "pairs" }, scheduleLoad)
       .on("postgres_changes", { event: "*", schema: "public", table: "matches" }, scheduleLoad)
+      .on("postgres_changes", { event: "*", schema: "public", table: "captains" }, scheduleLoad)
+      .on("postgres_changes", { event: "*", schema: "public", table: "members" }, scheduleLoad)
       .subscribe((status) => {
         const on = status === "SUBSCRIBED";
         $("live").classList.toggle("on", on);
