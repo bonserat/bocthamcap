@@ -410,7 +410,7 @@
     <p class="note">Thắng 3 điểm, hòa 1 điểm, thua 0 điểm. Bằng điểm thì xét hiệu số, rồi tổng điểm ghi được, vẫn bằng nữa thì ai bốc thăm trước xếp trên. Đánh xong vòng tròn: Nhất đánh với Nhì tranh vô địch, Ba đánh với Tư tranh hạng ba. Hai trận này không được hòa.</p>
   </section>
 
-  <footer>Kết quả được chọn ngẫu nhiên trên máy chủ, không ai can thiệp được.</footer>
+  <footer>Kết quả được chọn ngẫu nhiên trên máy chủ, không ai can thiệp được. @ Copyright by Nguyennvp</footer>
 </main>
 
 <div class="toasts" id="toasts" aria-live="polite"></div>
@@ -1134,7 +1134,7 @@
     }
     nameEl.textContent = res.member_name;
     nameEl.classList.add("done");
-    line.textContent = "Chúc mừng (hoặc chia buồn) " + res.captain_name + "!";
+    line.textContent = "Chia buồn với" + res.captain_name + "!";
     fanfare();
     startFx(8000);
     if (!reduce) setTimeout(() => $("stage").classList.remove("flash"), 8000);
