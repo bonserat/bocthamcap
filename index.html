@@ -410,7 +410,10 @@
     <p class="note">Thắng 3 điểm, hòa 1 điểm, thua 0 điểm. Bằng điểm thì xét hiệu số, rồi tổng điểm ghi được, vẫn bằng nữa thì ai bốc thăm trước xếp trên. Đánh xong vòng tròn: Nhất đánh với Nhì tranh vô địch, Ba đánh với Tư tranh hạng ba. Hai trận này không được hòa.</p>
   </section>
 
-  <footer>Kết quả được chọn ngẫu nhiên trên máy chủ, không ai can thiệp được. @ Copyright by Nguyennvp</footer>
+  <footer>
+    Kết quả được chọn ngẫu nhiên trên máy chủ, không ai can thiệp được.<br>
+    © 2026 Nguyennvp. Bản quyền thuộc về Nguyennvp.
+  </footer>
 </main>
 
 <div class="toasts" id="toasts" aria-live="polite"></div>
@@ -439,7 +442,7 @@
 </div>
 <canvas id="fx"></canvas>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js" onerror="this.remove()"></script>
 <script>
   // ====== THÔNG TIN SUPABASE ======
   const SUPABASE_URL = "https://gzjtkwnwalttzkbvhkyl.supabase.co";
@@ -447,7 +450,8 @@
   // ================================
 
   const $ = (id) => document.getElementById(id);
-  const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  let db = null;          // tạo sau khi thư viện Supabase tải xong
+  let loadErr = "";       // lỗi kết nối gần nhất, hiện ở ô trạng thái
   const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const DEFAULT_HINT = "Gõ đúng tên là được, không cần đúng dấu hay chữ hoa.";
@@ -508,7 +512,13 @@
 
   function renderWindow() {
     const box = $("window");
-    if (!loaded) { box.className = "status"; return; }
+    if (!loaded) {
+      box.className = "status" + (loadErr ? " closed" : "");
+      $("stMain").textContent = loadErr ? "Không kết nối được máy chủ" : "Đang tải…";
+      $("stSub").textContent = loadErr ? loadErr + " Đang tự thử lại…" : "";
+      $("stCd").textContent = "";
+      return;
+    }
     const st = windowState();
     box.className = "status " + (st === "after" ? "closed" : st);
     let main, sub, cd = "";
@@ -578,11 +588,19 @@
 
   /* ---------- Tải dữ liệu ---------- */
   async function load() {
-    if (drawing) return; // đang bốc thì đừng làm lộ kết quả trước màn hình
+    if (drawing || !db) return; // đang bốc thì đừng làm lộ kết quả trước màn hình
     if (loading) { queued = true; return; }
     loading = true;
-    try { await doLoad(); }
-    finally { loading = false; if (queued) { queued = false; load(); } }
+    try {
+      // Quá 12 giây không phản hồi thì báo lỗi thay vì "Đang tải" mãi
+      await Promise.race([
+        doLoad(),
+        sleep(12000).then(() => { throw new Error("timeout"); }),
+      ]);
+    } catch (e) {
+      loadErr = "Mạng chậm hoặc máy chủ không phản hồi.";
+      renderWindow();
+    } finally { loading = false; if (queued) { queued = false; load(); } }
   }
 
   async function doLoad() {
@@ -594,9 +612,14 @@
       db.from("matches").select("id,stage,round,slot,team_a,team_b,score_a,score_b").order("round").order("slot"),
     ]);
     if (c.error || m.error || p.error) {
-      showMsg("Không tải được dữ liệu. Kiểm tra lại cấu hình Supabase.", "err");
+      const e = c.error || m.error || p.error;
+      console.error("Lỗi tải dữ liệu:", e);
+      loadErr = "Không đọc được dữ liệu (" + (e.message || "lỗi không rõ") + ").";
+      if (!loaded) renderWindow();
+      else showMsg("Không tải được dữ liệu mới, đang thử lại…", "err");
       return;
     }
+    loadErr = "";
     const prevIds = new Set(pairs.map((x) => x.captain_id));
     const prevMatchCount = matches.length;
     const prevKoCount = koM().length;
@@ -1134,7 +1157,7 @@
     }
     nameEl.textContent = res.member_name;
     nameEl.classList.add("done");
-    line.textContent = "Chia buồn với" + res.captain_name + "!";
+    line.textContent = "Chúc mừng (hoặc chia buồn) " + res.captain_name + "!";
     fanfare();
     startFx(8000);
     if (!reduce) setTimeout(() => $("stage").classList.remove("flash"), 8000);
@@ -1203,16 +1226,37 @@
   let loadTimer = 0;
   const scheduleLoad = () => { clearTimeout(loadTimer); loadTimer = setTimeout(load, 250); };
 
-  load();
-  db.channel("live-changes")
-    .on("postgres_changes", { event: "*", schema: "public", table: "pairs" }, scheduleLoad)
-    .on("postgres_changes", { event: "*", schema: "public", table: "matches" }, scheduleLoad)
-    .subscribe((status) => {
-      const on = status === "SUBSCRIBED";
-      $("live").classList.toggle("on", on);
-      $("liveTxt").textContent = on ? "Trực tiếp" : "Tự làm mới";
+  // Nạp thư viện Supabase: thử jsdelivr trước, hỏng thì thử unpkg
+  function loadScript(src) {
+    return new Promise((resolve) => {
+      const s = document.createElement("script");
+      s.src = src; s.onload = () => resolve(true); s.onerror = () => resolve(false);
+      document.head.appendChild(s);
     });
-  setInterval(() => { if (!drawing) load(); }, 8000);
+  }
+
+  async function start() {
+    updateButton();
+    renderWindow();
+    if (!window.supabase) await loadScript("https://unpkg.com/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js");
+    if (!window.supabase) {
+      loadErr = "Không tải được thư viện kết nối. Kiểm tra mạng hoặc tắt chặn quảng cáo rồi tải lại trang.";
+      renderWindow();
+      return;
+    }
+    db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    load();
+    db.channel("live-changes")
+      .on("postgres_changes", { event: "*", schema: "public", table: "pairs" }, scheduleLoad)
+      .on("postgres_changes", { event: "*", schema: "public", table: "matches" }, scheduleLoad)
+      .subscribe((status) => {
+        const on = status === "SUBSCRIBED";
+        $("live").classList.toggle("on", on);
+        $("liveTxt").textContent = on ? "Trực tiếp" : "Tự làm mới";
+      });
+    setInterval(() => { if (!drawing) load(); }, 8000);
+  }
+  start();
 </script>
 </body>
 </html>
