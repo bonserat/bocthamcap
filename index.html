@@ -32,7 +32,7 @@
     line-height: 1.55;
   }
 
-  /* ---------- Nền: lưới mờ và 3 quả cầu sáng trôi chậm ---------- */
+  /* ---------- Nền ---------- */
   .bg { position: fixed; inset: 0; z-index: -1; overflow: hidden; pointer-events: none; }
   .bg::after {
     content: ""; position: absolute; inset: 0;
@@ -59,7 +59,6 @@
   main > *:nth-child(5) { animation-delay: .32s; }
   @keyframes rise { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: none; } }
 
-  /* ---------- Tiêu đề ---------- */
   .hero { margin-bottom: 22px; }
   h1 {
     font-family: var(--display); font-weight: 800; letter-spacing: -0.02em; line-height: 1.12;
@@ -72,7 +71,7 @@
   @keyframes shine { to { background-position: -220% 0; } }
   .sub { color: var(--muted); margin: 0; max-width: 46ch; }
 
-  /* ---------- Thanh trạng thái giờ bốc thăm ---------- */
+  /* ---------- Trạng thái giờ bốc thăm ---------- */
   .status {
     display: flex; align-items: center; gap: 14px;
     padding: 14px 16px; margin-bottom: 18px; border-radius: 16px;
@@ -151,17 +150,20 @@
   .msg.err { color: var(--err); }
   .msg.ok { color: var(--ok); }
 
-  /* ---------- Bảng kết quả ---------- */
+  /* ---------- Tiêu đề từng khối ---------- */
   .bh { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
   h2 { font-family: var(--display); font-size: 1.25rem; font-weight: 700; margin: 0; }
-  .live {
+  .subt { color: var(--muted); font-size: .92rem; margin: -6px 0 14px; }
+  .chip {
     display: inline-flex; align-items: center; gap: 8px; padding: 5px 12px; border-radius: 999px;
     font-size: .85rem; color: var(--muted); background: rgba(255,255,255,.05); border: 1px solid var(--line);
   }
+  .chip.ok { color: var(--ok); }
   .live i { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
   .live.on { color: var(--ok); }
   .live.on i { background: var(--ok); animation: ping 1.8s ease-out infinite; --ring: 61,220,151; }
 
+  /* ---------- Bảng kết quả bốc thăm ---------- */
   .bar { height: 8px; border-radius: 99px; background: rgba(255,255,255,.08); overflow: hidden; }
   .bar i { display: block; height: 100%; width: 0; border-radius: 99px; background: linear-gradient(90deg, var(--blue), var(--gold)); transition: width .9s cubic-bezier(.2, .8, .2, 1); }
   .count { color: var(--muted); font-size: .92rem; margin: 10px 0 16px; }
@@ -203,6 +205,74 @@
   .match.fresh .link i { transform-origin: left; animation: draw .8s ease-out; }
   @keyframes draw { from { transform: scaleX(0); } to { transform: scaleX(1); } }
 
+  /* ---------- Lịch thi đấu ---------- */
+  .locked {
+    display: flex; gap: 14px; align-items: center; padding: 16px; border-radius: 16px;
+    border: 1.5px dashed rgba(255,255,255,.2); color: var(--muted);
+  }
+  .locked .lk { font-size: 1.8rem; }
+  .locked b { color: var(--ink); font-family: var(--display); display: block; }
+  .rh { font-family: var(--display); font-size: 1rem; font-weight: 700; color: var(--blue); margin: 18px 0 10px; }
+  .rh:first-child { margin-top: 2px; }
+  ul.fxl { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+  .fx {
+    display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 10px;
+    padding: 12px 14px; border-radius: 18px; background: rgba(255,255,255,.035); border: 1px solid var(--line);
+  }
+  .fx.enter { animation: rise .6s cubic-bezier(.2,.8,.2,1) both; animation-delay: calc(var(--i) * 90ms); }
+  .fx.played { background: rgba(91,140,255,.07); border-color: rgba(91,140,255,.25); }
+  .tn { display: flex; flex-direction: column; min-width: 0; line-height: 1.3; }
+  .tn b { font-family: var(--display); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tn i { font-style: normal; color: var(--muted); font-size: .9rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tn.b { text-align: right; }
+  .tn.win b { color: var(--gold); }
+  .sc { font-family: var(--display); font-weight: 800; font-size: 1.5rem; font-variant-numeric: tabular-nums; min-width: 78px; text-align: center; }
+  .sc.vs { font-weight: 500; font-size: 1rem; color: var(--muted); }
+  .adm { grid-column: 1 / -1; display: flex; gap: 8px; align-items: center; justify-content: center; padding-top: 10px; border-top: 1px dashed var(--line); }
+  .adm input { width: 70px; text-align: center; padding: 9px; border-radius: 10px; font-family: var(--display); font-weight: 700; }
+  .adm button { padding: 10px 18px; border: 0; border-radius: 10px; font-weight: 700; background: var(--blue); color: #06122b; }
+
+  .admin { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--line); display: none; flex-direction: column; gap: 10px; }
+  .admin .row2 { display: flex; gap: 8px; }
+  .admin .row2 input { flex: 1; }
+  .admin .row2 button { padding: 0 18px; border: 0; border-radius: 14px; font-weight: 700; font-family: var(--display); background: var(--blue); color: #06122b; }
+  button.link-btn { background: none; border: 0; padding: 0; color: var(--muted); text-decoration: underline; align-self: flex-start; }
+  button.link-btn:hover { color: var(--ink); }
+
+  /* ---------- Bảng xếp hạng và bục nhận giải ---------- */
+  .podium { display: grid; grid-template-columns: 1fr 1.15fr 1fr; align-items: end; gap: 10px; margin: 6px 0 22px; }
+  .pstep { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 6px; min-width: 0; }
+  .pstep .crown { font-size: 1.8rem; animation: floaty 2.4s ease-in-out infinite; }
+  @keyframes floaty { 50% { transform: translateY(-6px) rotate(-6deg); } }
+  .pstep .who { font-family: var(--display); font-weight: 700; font-size: .95rem; line-height: 1.25; max-width: 100%; }
+  .pstep .who span { display: block; color: var(--muted); font-weight: 500; font-size: .85rem; }
+  .pstep .pts { color: var(--muted); font-size: .85rem; }
+  .pstep .blk {
+    width: 100%; border-radius: 14px 14px 0 0; display: grid; place-items: center;
+    font-family: var(--display); font-weight: 800; font-size: 2rem; transform-origin: bottom;
+    animation: growup .9s cubic-bezier(.2, .9, .3, 1.15) both;
+  }
+  .p1 .blk { height: 120px; background: linear-gradient(180deg, #ffd75e, #e29a1f); color: #3a2300; animation-delay: 1s; }
+  .p2 .blk { height: 88px; background: linear-gradient(180deg, #dbe2f4, #8f9bb8); color: #1b2338; animation-delay: .6s; }
+  .p3 .blk { height: 66px; background: linear-gradient(180deg, #f0a96b, #b8662a); color: #3a1a05; animation-delay: .2s; }
+  @keyframes growup { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+  .champ { text-align: center; font-family: var(--display); font-weight: 700; margin: 0 0 14px; color: var(--gold); }
+
+  table.tbl { width: 100%; border-collapse: collapse; }
+  .tbl th { color: var(--muted); font-weight: 500; font-size: .85rem; text-align: right; padding: 0 8px 8px; }
+  .tbl th:nth-child(1), .tbl th:nth-child(2) { text-align: left; }
+  .tbl td { padding: 11px 8px; border-top: 1px solid var(--line); text-align: right; font-variant-numeric: tabular-nums; }
+  .tbl td.rk { text-align: left; width: 44px; font-family: var(--display); font-weight: 800; }
+  .tbl td.tm { text-align: left; min-width: 0; }
+  .tbl td.tm b { font-family: var(--display); }
+  .tbl td.tm i { font-style: normal; color: var(--muted); }
+  .tbl td.pt { font-family: var(--display); font-weight: 800; font-size: 1.1rem; }
+  .tbl tr.r1 { background: linear-gradient(90deg, rgba(255,197,49,.16), transparent); }
+  .tbl tr.r2 { background: linear-gradient(90deg, rgba(200,210,235,.11), transparent); }
+  .tbl tr.r3 { background: linear-gradient(90deg, rgba(255,154,60,.12), transparent); }
+  .tbl tr.row { animation: rise .5s cubic-bezier(.2,.8,.2,1) both; animation-delay: calc(var(--i) * 70ms); }
+  .note { color: var(--muted); font-size: .85rem; margin: 12px 0 0; }
+
   footer { text-align: center; color: #6f7aa3; font-size: .85rem; margin-top: 8px; }
 
   /* ---------- Thông báo nổi ---------- */
@@ -242,7 +312,7 @@
   }
   button.ghost:hover { background: rgba(255,255,255,.07); }
 
-  /* ---------- Sân khấu bốc thăm (giữ nguyên hiệu ứng) ---------- */
+  /* ---------- Sân khấu bốc thăm ---------- */
   .stage {
     position: fixed; inset: 0; z-index: 50; display: none;
     flex-direction: column; align-items: center; justify-content: center; gap: 14px;
@@ -276,7 +346,9 @@
     .glass { padding: 18px; }
     .av { width: 36px; height: 36px; border-radius: 12px; }
     .link i { width: 18px; }
-    .match { padding: 10px; gap: 8px; }
+    .match, .fx { padding: 10px; gap: 8px; }
+    .sc { min-width: 64px; font-size: 1.3rem; }
+    .tbl td, .tbl th { padding-left: 4px; padding-right: 4px; }
   }
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { animation: none !important; transition: none !important; }
@@ -308,16 +380,35 @@
 
   <section class="glass">
     <div class="bh">
-      <h2>Kết quả</h2>
-      <span class="live" id="live"><i></i><span id="liveTxt">Tự làm mới</span></span>
+      <h2>Kết quả bốc thăm</h2>
+      <span class="chip live" id="live"><i></i><span id="liveTxt">Tự làm mới</span></span>
     </div>
     <div class="bar"><i id="barFill"></i></div>
     <div class="count" id="count"></div>
     <ul class="board" id="board"></ul>
   </section>
 
+  <section class="glass" id="fixturesSec">
+    <div class="bh">
+      <h2>Lịch thi đấu</h2>
+      <span class="chip" id="fxChip">Chưa chia</span>
+    </div>
+    <p class="subt">Đủ cặp là tự chia trận ngẫu nhiên, mỗi cặp gặp đủ các cặp còn lại.</p>
+    <div id="fixtures"></div>
+    <div class="admin" id="admin"></div>
+  </section>
+
+  <section class="glass" id="standSec" style="display:none">
+    <div class="bh"><h2>Bảng xếp hạng</h2></div>
+    <div id="podiumBox"></div>
+    <table class="tbl">
+      <thead><tr><th></th><th>Đội</th><th>Trận</th><th>Hiệu số</th><th>Điểm</th></tr></thead>
+      <tbody id="tbody"></tbody>
+    </table>
+    <p class="note">Thắng 3 điểm, hòa 1 điểm, thua 0 điểm. Bằng điểm thì xét hiệu số, rồi tổng điểm ghi được. Vẫn bằng nhau thì đá thêm một trận phân định.</p>
+  </section>
+
   <footer>Kết quả được chọn ngẫu nhiên trên máy chủ, không ai can thiệp được.</footer>
-    <footer>@ 2026 Web designed by Nguyennvp</footer>
 </main>
 
 <div class="toasts" id="toasts" aria-live="polite"></div>
@@ -326,7 +417,7 @@
 <div class="modal" id="confirm" role="dialog" aria-modal="true" aria-labelledby="cfTitle">
   <div class="card">
     <h3 id="cfTitle"></h3>
-    <p>Lưu ý: chỉ được bốc <b>MỘT lần</b> thôi nha. Bấm rồi là hết đường lui, khóc cũng không bốc lại được đâu.</p>
+    <p>Lưu ý: chỉ được bốc <b>MỘT lần</b> thôi nha anh. Bấm rồi là hết đường lui, khóc cũng không bốc lại được đâu.</p>
     <div class="row">
       <button class="draw" id="cfYes">Sẵn sàng, bốc luôn!</button>
       <button class="ghost" id="cfNo">Khoan, cho em hít thở cái</button>
@@ -359,10 +450,13 @@
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const DEFAULT_HINT = "Gõ đúng tên là được, không cần đúng dấu hay chữ hoa.";
 
-  let captains = [], members = [], pairs = [];
+  let captains = [], members = [], pairs = [], matches = [];
   let openAt = null, closeAt = null;
-  let drawing = false, loaded = false, loadedOnce = false;
+  let drawing = false, loaded = false, loadedOnce = false, loading = false, queued = false;
   let ownCaptainId = null, boardSig = "", lastState = null;
+  let fxSig = "", stSig = "", adminSig = "", fxBuilt = false, freshFixtures = false, wasFinal = false;
+  let adminOn = false, adminOpen = false, adminPin = "";
+  const drafts = {};
   const freshIds = new Set();
 
   const norm = (s) => (s || "")
@@ -380,6 +474,13 @@
     const w = (name || "?").trim().split(/\s+/);
     return (w[w.length - 1][0] || "?").toUpperCase();
   };
+  // Một "đội" = đội trưởng + thành viên bốc được
+  const team = (captainId) => {
+    const c = captains.find((x) => x.id === captainId);
+    const p = pairs.find((x) => x.captain_id === captainId);
+    return { cap: c ? c.name : "?", mem: p ? memberName(p.member_id) : "?" };
+  };
+  const teamText = (id) => { const t = team(id); return t.cap + " & " + t.mem; };
 
   const fmt = (iso) => new Date(iso).toLocaleString("vi-VN", {
     timeZone: "Asia/Ho_Chi_Minh", hour: "2-digit", minute: "2-digit",
@@ -424,20 +525,54 @@
     $("stCd").textContent = cd;
   }
 
+  /* ---------- Tính bảng xếp hạng ---------- */
+  function standings() {
+    const t = {};
+    pairs.forEach((p) => { t[p.captain_id] = { id: p.captain_id, P: 0, W: 0, D: 0, L: 0, GF: 0, GA: 0, Pts: 0 }; });
+    matches.forEach((m) => {
+      if (m.score_a == null || m.score_b == null) return;
+      const a = t[m.team_a], b = t[m.team_b];
+      if (!a || !b) return;
+      a.P++; b.P++;
+      a.GF += m.score_a; a.GA += m.score_b;
+      b.GF += m.score_b; b.GA += m.score_a;
+      if (m.score_a > m.score_b) { a.W++; a.Pts += 3; b.L++; }
+      else if (m.score_a < m.score_b) { b.W++; b.Pts += 3; a.L++; }
+      else { a.D++; b.D++; a.Pts++; b.Pts++; }
+    });
+    return Object.values(t).sort((x, y) =>
+      y.Pts - x.Pts || (y.GF - y.GA) - (x.GF - x.GA) || y.GF - x.GF || x.id - y.id);
+  }
+  const playedCount = () => matches.filter((m) => m.score_a != null && m.score_b != null).length;
+  const isFinal = () => matches.length > 0 && playedCount() === matches.length;
+
+  /* ---------- Tải dữ liệu ---------- */
   async function load() {
     if (drawing) return; // đang bốc thì đừng làm lộ kết quả trước màn hình
-    const [c, m, p, s] = await Promise.all([
+    if (loading) { queued = true; return; }
+    loading = true;
+    try { await doLoad(); }
+    finally { loading = false; if (queued) { queued = false; load(); } }
+  }
+
+  async function doLoad() {
+    const [c, m, p, s, mt] = await Promise.all([
       db.from("captains").select("id,name,alias").order("id"),
       db.from("members").select("id,name").order("id"),
       db.from("pairs").select("captain_id,member_id"),
       db.from("settings").select("open_at,close_at").eq("id", 1).maybeSingle(),
+      db.from("matches").select("id,round,slot,team_a,team_b,score_a,score_b").order("round").order("slot"),
     ]);
     if (c.error || m.error || p.error) {
       showMsg("Không tải được dữ liệu. Kiểm tra lại cấu hình Supabase.", "err");
       return;
     }
     const prevIds = new Set(pairs.map((x) => x.captain_id));
+    const prevMatchCount = matches.length;
+    const prevScores = new Map(matches.map((x) => [x.id, x.score_a == null ? null : x.score_a + ":" + x.score_b]));
+
     captains = c.data; members = m.data; pairs = p.data;
+    matches = mt.error ? [] : mt.data;
     openAt = s.data ? s.data.open_at : null;
     closeAt = s.data ? s.data.close_at : null;
     loaded = true;
@@ -451,11 +586,30 @@
           toast(cn + " vừa bốc xong, ghép với " + memberName(pr.member_id) + "!");
         }
       });
+      if (prevMatchCount === 0 && matches.length > 0) {
+        freshFixtures = true;
+        toast("Đủ " + captains.length + " cặp rồi! Trận đấu đã được chia, kéo xuống xem lịch thi đấu nha.");
+      }
+      if (!adminOn) {
+        matches.forEach((mm) => {
+          if (mm.score_a == null) return;
+          const now = mm.score_a + ":" + mm.score_b;
+          if (now !== prevScores.get(mm.id)) {
+            toast("Tỉ số mới: " + teamText(mm.team_a) + " " + mm.score_a + " : " + mm.score_b + " " + teamText(mm.team_b));
+          }
+        });
+      }
     }
+    const nowFinal = isFinal();
+    if (loadedOnce && !wasFinal && nowFinal && !reduce) {
+      setTimeout(() => { startFx(7000); fanfare(); }, 500);
+    }
+    wasFinal = nowFinal;
     loadedOnce = true;
     render();
   }
 
+  /* ---------- Hiển thị kết quả bốc thăm ---------- */
   function avatar(text, cls) {
     const a = document.createElement("span");
     a.className = "av " + cls; a.textContent = text;
@@ -465,7 +619,7 @@
   function renderBoard() {
     $("barFill").style.width = (captains.length ? Math.round((pairs.length / captains.length) * 100) : 0) + "%";
     $("count").textContent = "Đã bốc " + pairs.length + "/" + captains.length +
-      (captains.length && pairs.length === captains.length ? ". Đủ cặp rồi, chốt sổ!" : "");
+      (captains.length && pairs.length === captains.length ? ". Đủ cặp rồi, chia trận thôi!" : "");
 
     const sig = captains.map((c) => c.id).join(",") + "|" + pairs.map((p) => p.captain_id + ":" + p.member_id).join(",");
     if (sig === boardSig) return;
@@ -503,9 +657,253 @@
     freshIds.clear();
   }
 
+  /* ---------- Lịch thi đấu ---------- */
+  function renderFixtures() {
+    const chip = $("fxChip");
+    if (matches.length) {
+      chip.textContent = "Đã đấu " + playedCount() + "/" + matches.length;
+      chip.className = "chip" + (isFinal() ? " ok" : "");
+    } else {
+      chip.textContent = "Chưa chia"; chip.className = "chip";
+    }
+
+    const sig = matches.map((m) => [m.id, m.team_a, m.team_b, m.score_a, m.score_b].join(":")).join("|") +
+      "#" + pairs.length + "#" + captains.length + "#" + (adminOn ? 1 : 0);
+    if (sig === fxSig) return;
+    fxSig = sig;
+
+    const box = $("fixtures");
+    box.innerHTML = "";
+
+    if (!matches.length) {
+      const missing = Math.max(0, captains.length - pairs.length);
+      const d = document.createElement("div");
+      d.className = "locked";
+      d.innerHTML = '<span class="lk">🔒</span><div><b></b><span></span></div>';
+      d.querySelector("b").textContent = missing ? "Còn thiếu " + missing + " cặp nữa" : "Đang chia trận…";
+      d.querySelector("span").textContent = "Bốc đủ " + captains.length + " cặp là hệ thống tự chia trận ngay, mỗi cặp gặp đủ các cặp còn lại.";
+      box.appendChild(d);
+      return;
+    }
+
+    const animate = !fxBuilt || freshFixtures;
+    fxBuilt = true; freshFixtures = false;
+
+    let idx = 0;
+    [...new Set(matches.map((m) => m.round))].forEach((r) => {
+      const h = document.createElement("h3");
+      h.className = "rh"; h.textContent = "Lượt " + r;
+      const ul = document.createElement("ul");
+      ul.className = "fxl";
+      matches.filter((m) => m.round === r).forEach((m) => {
+        ul.appendChild(buildFixture(m, idx++, animate));
+      });
+      box.append(h, ul);
+    });
+  }
+
+  function teamCell(id, side, win) {
+    const t = team(id);
+    const el = document.createElement("div");
+    el.className = "tn " + side + (win ? " win" : "");
+    const b = document.createElement("b"); b.textContent = t.cap;
+    const i = document.createElement("i"); i.textContent = "& " + t.mem;
+    el.append(b, i);
+    return el;
+  }
+
+  function buildFixture(m, idx, animate) {
+    const played = m.score_a != null && m.score_b != null;
+    const li = document.createElement("li");
+    li.className = "fx" + (played ? " played" : "") + (animate ? " enter" : "");
+    li.style.setProperty("--i", idx);
+
+    const sc = document.createElement("div");
+    sc.className = "sc" + (played ? "" : " vs");
+    sc.textContent = played ? m.score_a + " : " + m.score_b : "vs";
+
+    li.append(
+      teamCell(m.team_a, "a", played && m.score_a > m.score_b),
+      sc,
+      teamCell(m.team_b, "b", played && m.score_b > m.score_a)
+    );
+
+    if (adminOn) {
+      const d = drafts[m.id] || {};
+      const row = document.createElement("div"); row.className = "adm";
+      const ia = document.createElement("input");
+      const ib = document.createElement("input");
+      [ia, ib].forEach((x) => { x.type = "number"; x.inputMode = "numeric"; x.min = "0"; x.max = "99"; });
+      ia.value = d.a !== undefined ? d.a : (m.score_a == null ? "" : m.score_a);
+      ib.value = d.b !== undefined ? d.b : (m.score_b == null ? "" : m.score_b);
+      ia.setAttribute("aria-label", "Điểm của " + teamText(m.team_a));
+      ib.setAttribute("aria-label", "Điểm của " + teamText(m.team_b));
+      const keep = () => { drafts[m.id] = { a: ia.value, b: ib.value }; };
+      ia.addEventListener("input", keep); ib.addEventListener("input", keep);
+      const colon = document.createElement("span"); colon.textContent = ":";
+      const btn = document.createElement("button"); btn.textContent = "Lưu";
+      btn.onclick = () => saveScore(m.id, ia.value, ib.value, btn);
+      [ia, ib].forEach((x) => x.addEventListener("keydown", (e) => { if (e.key === "Enter") btn.click(); }));
+      row.append(ia, colon, ib, btn);
+      li.appendChild(row);
+    }
+    return li;
+  }
+
+  /* ---------- Ban tổ chức nhập tỉ số ---------- */
+  function renderAdmin() {
+    const sig = (matches.length > 0) + "|" + adminOn + "|" + adminOpen;
+    if (sig === adminSig) return;
+    adminSig = sig;
+    const box = $("admin");
+    box.innerHTML = "";
+    if (!matches.length) { box.style.display = "none"; return; }
+    box.style.display = "flex";
+
+    if (adminOn) {
+      const t = document.createElement("div");
+      t.className = "hint ok"; t.textContent = "Đã mở khóa. Nhập tỉ số vào từng trận rồi bấm Lưu.";
+      const b = document.createElement("button");
+      b.className = "link-btn"; b.textContent = "Khóa lại"; b.onclick = lockAdmin;
+      box.append(t, b);
+      return;
+    }
+    if (!adminOpen) {
+      const b = document.createElement("button");
+      b.className = "link-btn"; b.textContent = "Ban tổ chức nhập tỉ số";
+      b.onclick = () => { adminOpen = true; renderAdmin(); const i = $("admin").querySelector("input"); if (i) i.focus(); };
+      box.appendChild(b);
+      return;
+    }
+    const row = document.createElement("div"); row.className = "row2";
+    const inp = document.createElement("input");
+    inp.type = "password"; inp.placeholder = "Mã ban tổ chức"; inp.autocomplete = "off";
+    const go = document.createElement("button"); go.textContent = "Mở khóa";
+    const err = document.createElement("div"); err.className = "hint";
+    const submit = async () => {
+      if (!inp.value.trim()) return;
+      go.disabled = true;
+      const { data, error } = await db.rpc("check_admin", { p_pin: inp.value.trim() });
+      go.disabled = false;
+      if (error) { err.textContent = "Lỗi kết nối, thử lại nha."; return; }
+      if (data === true) {
+        adminOn = true; adminPin = inp.value.trim();
+        fxSig = ""; adminSig = "";
+        renderAdmin(); renderFixtures();
+      } else { err.textContent = "Sai mã rồi."; err.style.color = "var(--err)"; }
+    };
+    go.onclick = submit;
+    inp.addEventListener("keydown", (e) => { if (e.key === "Enter") submit(); });
+    row.append(inp, go);
+    const cancel = document.createElement("button");
+    cancel.className = "link-btn"; cancel.textContent = "Thôi, đóng lại";
+    cancel.onclick = () => { adminOpen = false; renderAdmin(); };
+    box.append(row, err, cancel);
+  }
+
+  function lockAdmin() {
+    adminOn = false; adminOpen = false; adminPin = "";
+    Object.keys(drafts).forEach((k) => delete drafts[k]);
+    fxSig = ""; adminSig = "";
+    renderAdmin(); renderFixtures();
+  }
+
+  async function saveScore(id, a, b, btn) {
+    const ea = a === "" || a == null, eb = b === "" || b == null;
+    if (ea !== eb) { toast("Nhập đủ tỉ số của cả hai đội, hoặc để trống cả hai nhé.", "⚠️"); return; }
+    const pa = ea ? null : parseInt(a, 10), pb = eb ? null : parseInt(b, 10);
+    if (!ea && (isNaN(pa) || isNaN(pb) || pa < 0 || pb < 0 || pa > 99 || pb > 99)) {
+      toast("Tỉ số phải là số từ 0 đến 99.", "⚠️"); return;
+    }
+    btn.disabled = true;
+    const { data, error } = await db.rpc("set_score", { p_pin: adminPin, p_match_id: id, p_a: pa, p_b: pb });
+    btn.disabled = false;
+    if (error || !data) { toast("Lỗi kết nối, thử lại nha.", "⚠️"); return; }
+    if (!data.ok) {
+      toast(data.error, "⚠️");
+      if (data.error.indexOf("mã") !== -1) lockAdmin();
+      return;
+    }
+    delete drafts[id];
+    toast(pa == null ? "Đã xóa tỉ số trận này." : "Đã lưu tỉ số.", "✅");
+    await load();
+  }
+
+  /* ---------- Bảng xếp hạng và bục nhận giải ---------- */
+  function renderStandings() {
+    const sec = $("standSec");
+    if (!matches.length) { sec.style.display = "none"; return; }
+    sec.style.display = "";
+
+    const rows = standings();
+    const fin = isFinal();
+    const any = rows.some((r) => r.P > 0);
+    const sig = rows.map((r) => [r.id, r.P, r.Pts, r.GF, r.GA].join(":")).join("|") + "#" + fin;
+    if (sig === stSig) return;
+    stSig = sig;
+
+    // Bục nhận giải chỉ hiện khi đã đấu xong tất cả các trận
+    const pod = $("podiumBox");
+    pod.innerHTML = "";
+    if (fin && rows.length >= 3) {
+      const champ = document.createElement("p");
+      champ.className = "champ";
+      champ.textContent = "Chúc mừng " + teamText(rows[0].id) + " vô địch!";
+      const wrap = document.createElement("div");
+      wrap.className = "podium";
+      [1, 0, 2].forEach((k) => {
+        const r = rows[k], t = team(r.id);
+        const st = document.createElement("div");
+        st.className = "pstep p" + (k + 1);
+        if (k === 0) { const cr = document.createElement("div"); cr.className = "crown"; cr.textContent = "👑"; st.appendChild(cr); }
+        const who = document.createElement("div"); who.className = "who";
+        who.textContent = t.cap;
+        const sp = document.createElement("span"); sp.textContent = "& " + t.mem;
+        who.appendChild(sp);
+        const pts = document.createElement("div"); pts.className = "pts"; pts.textContent = r.Pts + " điểm";
+        const blk = document.createElement("div"); blk.className = "blk"; blk.textContent = String(k + 1);
+        st.append(who, pts, blk);
+        wrap.appendChild(st);
+      });
+      pod.append(champ, wrap);
+    }
+
+    const tb = $("tbody");
+    tb.innerHTML = "";
+    const medals = ["🥇", "🥈", "🥉"];
+    rows.forEach((r, i) => {
+      const t = team(r.id);
+      const tr = document.createElement("tr");
+      tr.className = "row" + (any && i < 3 ? " r" + (i + 1) : "");
+      tr.style.setProperty("--i", i);
+      const diff = r.GF - r.GA;
+      const cells = [
+        ["rk", any && i < 3 ? medals[i] : String(i + 1)],
+        ["tm", null],
+        ["", String(r.P)],
+        ["", (diff > 0 ? "+" : "") + diff],
+        ["pt", String(r.Pts)],
+      ];
+      cells.forEach(([cls, text]) => {
+        const td = document.createElement("td");
+        if (cls) td.className = cls;
+        if (cls === "tm") {
+          const b = document.createElement("b"); b.textContent = t.cap;
+          const sm = document.createElement("i"); sm.textContent = " & " + t.mem;
+          td.append(b, sm);
+        } else td.textContent = text;
+        tr.appendChild(td);
+      });
+      tb.appendChild(tr);
+    });
+  }
+
   function render() {
     renderWindow();
     renderBoard();
+    renderFixtures();
+    renderAdmin();
+    renderStandings();
     updateButton();
   }
 
@@ -531,9 +929,9 @@
     }
   }
 
-  function toast(text) {
+  function toast(text, icon) {
     const t = document.createElement("div");
-    t.className = "toast"; t.textContent = "🎉 " + text;
+    t.className = "toast"; t.textContent = (icon || "🎉") + " " + text;
     $("toasts").appendChild(t);
     setTimeout(() => { t.classList.add("out"); setTimeout(() => t.remove(), 400); }, 4800);
   }
@@ -690,7 +1088,7 @@
     }
     nameEl.textContent = res.member_name;
     nameEl.classList.add("done");
-    line.textContent = "Chia buồn với " + res.captain_name + "! Đen thế";
+    line.textContent = "Chúc mừng (hoặc chia buồn) " + res.captain_name + "!";
     fanfare();
     startFx(8000);
     if (!reduce) setTimeout(() => $("stage").classList.remove("flash"), 8000);
@@ -703,9 +1101,14 @@
 
     closeStage();
     drawing = false;
-    showMsg("Xong rồi nha, không đổi được nữa đâu. Chịu khó thương nhau đi!", "ok");
+    showMsg(res.complete
+      ? "Đủ cặp rồi! Trận đấu đã được chia, xem lịch thi đấu bên dưới nha."
+      : "Xong rồi nha, không đổi được nữa đâu. Chịu khó thương nhau đi!", "ok");
     await load();
-    if (!reduce) $("board").scrollIntoView({ behavior: "smooth", block: "center" });
+    if (!reduce) {
+      const target = matches.length ? $("fixturesSec") : $("board");
+      target.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
   }
 
   async function onDraw() {
@@ -750,9 +1153,14 @@
     if (st !== lastState) { lastState = st; updateButton(); }
   }, 1000);
 
+  // Gộp nhiều sự kiện realtime liên tiếp thành một lần tải
+  let loadTimer = 0;
+  const scheduleLoad = () => { clearTimeout(loadTimer); loadTimer = setTimeout(load, 250); };
+
   load();
-  db.channel("pairs-changes")
-    .on("postgres_changes", { event: "*", schema: "public", table: "pairs" }, load)
+  db.channel("live-changes")
+    .on("postgres_changes", { event: "*", schema: "public", table: "pairs" }, scheduleLoad)
+    .on("postgres_changes", { event: "*", schema: "public", table: "matches" }, scheduleLoad)
     .subscribe((status) => {
       const on = status === "SUBSCRIBED";
       $("live").classList.toggle("on", on);
