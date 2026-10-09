@@ -214,6 +214,7 @@
   .locked b { color: var(--ink); font-family: var(--display); display: block; }
   .rh { font-family: var(--display); font-size: 1rem; font-weight: 700; color: var(--blue); margin: 18px 0 10px; }
   .rh:first-child { margin-top: 2px; }
+  .rh.ko { color: var(--gold); }
   ul.fxl { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
   .fx {
     display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 10px;
@@ -221,6 +222,9 @@
   }
   .fx.enter { animation: rise .6s cubic-bezier(.2,.8,.2,1) both; animation-delay: calc(var(--i) * 90ms); }
   .fx.played { background: rgba(91,140,255,.07); border-color: rgba(91,140,255,.25); }
+  .fx.ko { border-color: rgba(255,197,49,.28); background: rgba(255,197,49,.05); }
+  .kotag { grid-column: 1 / -1; font-family: var(--display); font-weight: 700; font-size: .85rem; color: var(--gold); }
+  .kotag span { color: var(--muted); font-weight: 500; font-family: "Be Vietnam Pro", sans-serif; }
   .tn { display: flex; flex-direction: column; min-width: 0; line-height: 1.3; }
   .tn b { font-family: var(--display); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .tn i { font-style: normal; color: var(--muted); font-size: .9rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -233,9 +237,6 @@
   .adm button { padding: 10px 18px; border: 0; border-radius: 10px; font-weight: 700; background: var(--blue); color: #06122b; }
 
   .admin { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--line); display: none; flex-direction: column; gap: 10px; }
-  .admin .row2 { display: flex; gap: 8px; }
-  .admin .row2 input { flex: 1; }
-  .admin .row2 button { padding: 0 18px; border: 0; border-radius: 14px; font-weight: 700; font-family: var(--display); background: var(--blue); color: #06122b; }
   button.link-btn { background: none; border: 0; padding: 0; color: var(--muted); text-decoration: underline; align-self: flex-start; }
   button.link-btn:hover { color: var(--ink); }
 
@@ -393,7 +394,7 @@
       <h2>Lịch thi đấu</h2>
       <span class="chip" id="fxChip">Chưa chia</span>
     </div>
-    <p class="subt">Đủ cặp là tự chia trận ngẫu nhiên, mỗi cặp gặp đủ các cặp còn lại.</p>
+    <p class="subt">Đủ cặp là tự chia trận ngẫu nhiên, mỗi cặp đánh với đủ các cặp còn lại. Đánh xong vòng tròn thì Nhất đánh với Nhì tranh vô địch, Ba đánh với Tư tranh hạng ba.</p>
     <div id="fixtures"></div>
     <div class="admin" id="admin"></div>
   </section>
@@ -401,11 +402,12 @@
   <section class="glass" id="standSec" style="display:none">
     <div class="bh"><h2>Bảng xếp hạng</h2></div>
     <div id="podiumBox"></div>
+    <h3 class="rh" style="margin-top:0">Vòng tròn</h3>
     <table class="tbl">
       <thead><tr><th></th><th>Đội</th><th>Trận</th><th>Hiệu số</th><th>Điểm</th></tr></thead>
       <tbody id="tbody"></tbody>
     </table>
-    <p class="note">Thắng 3 điểm, hòa 1 điểm, thua 0 điểm. Bằng điểm thì xét hiệu số, rồi tổng điểm ghi được. Vẫn bằng nhau thì đánh thêm một trận phân định.</p>
+    <p class="note">Thắng 3 điểm, hòa 1 điểm, thua 0 điểm. Bằng điểm thì xét hiệu số, rồi tổng điểm ghi được, vẫn bằng nữa thì ai bốc thăm trước xếp trên. Đánh xong vòng tròn: Nhất đánh với Nhì tranh vô địch, Ba đánh với Tư tranh hạng ba. Hai trận này không được hòa.</p>
   </section>
 
   <footer>Kết quả được chọn ngẫu nhiên trên máy chủ, không ai can thiệp được.</footer>
@@ -449,13 +451,17 @@
   const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const DEFAULT_HINT = "Gõ đúng tên là được, không cần đúng dấu hay chữ hoa.";
+  const KO_LABEL = {
+    final: ["🏆 Chung kết", "Nhất đánh với Nhì"],
+    third: ["🥉 Tranh hạng ba", "Ba đánh với Tư"],
+  };
 
   let captains = [], members = [], pairs = [], matches = [];
   let openAt = null, closeAt = null;
   let drawing = false, loaded = false, loadedOnce = false, loading = false, queued = false;
   let ownCaptainId = null, boardSig = "", lastState = null;
   let fxSig = "", stSig = "", adminSig = "", fxBuilt = false, freshFixtures = false, wasFinal = false;
-  let adminOn = false, adminOpen = false, adminPin = "";
+  let editOn = false;
   const drafts = {};
   const freshIds = new Set();
 
@@ -525,12 +531,37 @@
     $("stCd").textContent = cd;
   }
 
-  /* ---------- Tính bảng xếp hạng ---------- */
+  /* ---------- Phân loại trận ---------- */
+  const isPlayed = (m) => m.score_a != null && m.score_b != null;
+  const groupM = () => matches.filter((m) => (m.stage || "group") === "group");
+  const koM = () => matches.filter((m) => m.stage === "final" || m.stage === "third")
+    .sort((a, b) => (a.stage === "final" ? 0 : 1) - (b.stage === "final" ? 0 : 1));
+  const groupDone = () => groupM().length > 0 && groupM().every(isPlayed);
+  const hasKo = () => pairs.length === 4; // 4 đội: vòng tròn 6 trận + 2 trận xếp hạng
+  const totalMatches = () => groupM().length + (hasKo() && groupM().length ? 2 : 0);
+  const playedCount = () => matches.filter(isPlayed).length;
+  const winner = (m) => (m.score_a > m.score_b ? m.team_a : m.team_b);
+  const loser = (m) => (m.score_a > m.score_b ? m.team_b : m.team_a);
+
+  // Thứ hạng chung cuộc sau 2 trận xếp hạng: [vô địch, nhì, ba, tư]
+  function finalRank() {
+    const f = matches.find((m) => m.stage === "final");
+    const t = matches.find((m) => m.stage === "third");
+    if (!f || !t || !isPlayed(f) || !isPlayed(t)) return null;
+    return [winner(f), loser(f), winner(t), loser(t)];
+  }
+  const isFinal = () => hasKo() ? !!finalRank() : groupDone();
+
+  /* ---------- Tính bảng xếp hạng vòng tròn ---------- */
+  const drawOrder = (id) => {
+    const p = pairs.find((x) => x.captain_id === id);
+    return p && p.drawn_at ? new Date(p.drawn_at).getTime() : Infinity;
+  };
   function standings() {
     const t = {};
     pairs.forEach((p) => { t[p.captain_id] = { id: p.captain_id, P: 0, W: 0, D: 0, L: 0, GF: 0, GA: 0, Pts: 0 }; });
-    matches.forEach((m) => {
-      if (m.score_a == null || m.score_b == null) return;
+    groupM().forEach((m) => {
+      if (!isPlayed(m)) return;
       const a = t[m.team_a], b = t[m.team_b];
       if (!a || !b) return;
       a.P++; b.P++;
@@ -541,14 +572,13 @@
       else { a.D++; b.D++; a.Pts++; b.Pts++; }
     });
     return Object.values(t).sort((x, y) =>
-      y.Pts - x.Pts || (y.GF - y.GA) - (x.GF - x.GA) || y.GF - x.GF || x.id - y.id);
+      y.Pts - x.Pts || (y.GF - y.GA) - (x.GF - x.GA) || y.GF - x.GF ||
+      drawOrder(x.id) - drawOrder(y.id) || x.id - y.id);
   }
-  const playedCount = () => matches.filter((m) => m.score_a != null && m.score_b != null).length;
-  const isFinal = () => matches.length > 0 && playedCount() === matches.length;
 
   /* ---------- Tải dữ liệu ---------- */
   async function load() {
-    if (drawing) return;
+    if (drawing) return; // đang bốc thì đừng làm lộ kết quả trước màn hình
     if (loading) { queued = true; return; }
     loading = true;
     try { await doLoad(); }
@@ -559,9 +589,9 @@
     const [c, m, p, s, mt] = await Promise.all([
       db.from("captains").select("id,name,alias").order("id"),
       db.from("members").select("id,name").order("id"),
-      db.from("pairs").select("captain_id,member_id"),
+      db.from("pairs").select("captain_id,member_id,drawn_at"),
       db.from("settings").select("open_at,close_at").eq("id", 1).maybeSingle(),
-      db.from("matches").select("id,round,slot,team_a,team_b,score_a,score_b,stage").order("round").order("slot"),
+      db.from("matches").select("id,stage,round,slot,team_a,team_b,score_a,score_b").order("round").order("slot"),
     ]);
     if (c.error || m.error || p.error) {
       showMsg("Không tải được dữ liệu. Kiểm tra lại cấu hình Supabase.", "err");
@@ -569,6 +599,7 @@
     }
     const prevIds = new Set(pairs.map((x) => x.captain_id));
     const prevMatchCount = matches.length;
+    const prevKoCount = koM().length;
     const prevScores = new Map(matches.map((x) => [x.id, x.score_a == null ? null : x.score_a + ":" + x.score_b]));
 
     captains = c.data; members = m.data; pairs = p.data;
@@ -588,13 +619,17 @@
       });
       if (prevMatchCount === 0 && matches.length > 0) {
         freshFixtures = true;
-        toast("Đủ " + captains.length + " cặp rồi! Trận đấu đã được chia, kéo xuống xem lịch thi đấu nha.");
+        toast("Đủ " + captains.length + " cặp rồi! Trận đã được chia, kéo xuống xem lịch thi đấu nha.");
       }
-      if (!adminOn) {
+      if (prevKoCount === 0 && koM().length > 0) {
+        freshFixtures = true;
+        toast("Xong vòng tròn! Nhất đánh với Nhì tranh vô địch, Ba đánh với Tư tranh hạng ba.", "🔥");
+      }
+      if (!editOn) {
         matches.forEach((mm) => {
           if (mm.score_a == null) return;
           const now = mm.score_a + ":" + mm.score_b;
-          if (now !== prevScores.get(mm.id)) {
+          if (prevScores.has(mm.id) && now !== prevScores.get(mm.id)) {
             toast("Tỉ số mới: " + teamText(mm.team_a) + " " + mm.score_a + " : " + mm.score_b + " " + teamText(mm.team_b));
           }
         });
@@ -658,17 +693,26 @@
   }
 
   /* ---------- Lịch thi đấu ---------- */
+  function lockedBox(title, text) {
+    const d = document.createElement("div");
+    d.className = "locked";
+    d.innerHTML = '<span class="lk">🔒</span><div><b></b><span></span></div>';
+    d.querySelector("b").textContent = title;
+    d.querySelector("span").textContent = text;
+    return d;
+  }
+
   function renderFixtures() {
     const chip = $("fxChip");
     if (matches.length) {
-      chip.textContent = "Đã đánh " + playedCount() + "/" + matches.length;
+      chip.textContent = "Đã đánh " + playedCount() + "/" + totalMatches();
       chip.className = "chip" + (isFinal() ? " ok" : "");
     } else {
       chip.textContent = "Chưa chia"; chip.className = "chip";
     }
 
-    const sig = matches.map((m) => [m.id, m.team_a, m.team_b, m.score_a, m.score_b].join(":")).join("|") +
-      "#" + pairs.length + "#" + captains.length + "#" + (adminOn ? 1 : 0);
+    const sig = matches.map((m) => [m.id, m.stage, m.team_a, m.team_b, m.score_a, m.score_b].join(":")).join("|") +
+      "#" + pairs.length + "#" + captains.length + "#" + (editOn ? 1 : 0);
     if (sig === fxSig) return;
     fxSig = sig;
 
@@ -677,12 +721,10 @@
 
     if (!matches.length) {
       const missing = Math.max(0, captains.length - pairs.length);
-      const d = document.createElement("div");
-      d.className = "locked";
-      d.innerHTML = '<span class="lk">🔒</span><div><b></b><span></span></div>';
-      d.querySelector("b").textContent = missing ? "Còn thiếu " + missing + " cặp nữa" : "Đang chia trận…";
-      d.querySelector("span").textContent = "Bốc đủ " + captains.length + " cặp là hệ thống tự chia trận ngay, mỗi cặp gặp đủ các cặp còn lại.";
-      box.appendChild(d);
+      box.appendChild(lockedBox(
+        missing ? "Còn thiếu " + missing + " cặp nữa" : "Đang chia trận…",
+        "Bốc đủ " + captains.length + " cặp là hệ thống tự chia trận ngay, mỗi cặp đánh với đủ các cặp còn lại."
+      ));
       return;
     }
 
@@ -690,16 +732,34 @@
     fxBuilt = true; freshFixtures = false;
 
     let idx = 0;
-    [...new Set(matches.map((m) => m.round))].forEach((r) => {
+    const gm = groupM();
+    [...new Set(gm.map((m) => m.round))].forEach((r) => {
       const h = document.createElement("h3");
       h.className = "rh"; h.textContent = "Lượt " + r;
       const ul = document.createElement("ul");
       ul.className = "fxl";
-      matches.filter((m) => m.round === r).forEach((m) => {
-        ul.appendChild(buildFixture(m, idx++, animate));
-      });
+      gm.filter((m) => m.round === r).forEach((m) => ul.appendChild(buildFixture(m, idx++, animate)));
       box.append(h, ul);
     });
+
+    if (!hasKo()) return;
+    const h = document.createElement("h3");
+    h.className = "rh ko"; h.textContent = "Trận xếp hạng";
+    box.appendChild(h);
+
+    const ko = koM();
+    if (!ko.length) {
+      const left = gm.filter((m) => !isPlayed(m)).length;
+      box.appendChild(lockedBox(
+        left ? "Còn " + left + " trận vòng tròn nữa" : "Đang xếp trận…",
+        "Đánh xong " + gm.length + " trận vòng tròn là có ngay: Nhất đánh với Nhì tranh vô địch, Ba đánh với Tư tranh hạng ba."
+      ));
+      return;
+    }
+    const ul = document.createElement("ul");
+    ul.className = "fxl";
+    ko.forEach((m) => ul.appendChild(buildFixture(m, idx++, animate)));
+    box.appendChild(ul);
   }
 
   function teamCell(id, side, win) {
@@ -713,10 +773,20 @@
   }
 
   function buildFixture(m, idx, animate) {
-    const played = m.score_a != null && m.score_b != null;
+    const played = isPlayed(m);
+    const ko = KO_LABEL[m.stage];
     const li = document.createElement("li");
-    li.className = "fx" + (played ? " played" : "") + (animate ? " enter" : "");
+    li.className = "fx" + (played ? " played" : "") + (ko ? " ko" : "") + (animate ? " enter" : "");
     li.style.setProperty("--i", idx);
+
+    if (ko) {
+      const tag = document.createElement("div");
+      tag.className = "kotag";
+      tag.textContent = ko[0] + " ";
+      const sp = document.createElement("span"); sp.textContent = "· " + ko[1];
+      tag.appendChild(sp);
+      li.appendChild(tag);
+    }
 
     const sc = document.createElement("div");
     sc.className = "sc" + (played ? "" : " vs");
@@ -728,7 +798,7 @@
       teamCell(m.team_b, "b", played && m.score_b > m.score_a)
     );
 
-    if (adminOn) {
+    if (editOn) {
       const d = drafts[m.id] || {};
       const row = document.createElement("div"); row.className = "adm";
       const ia = document.createElement("input");
@@ -742,7 +812,7 @@
       ia.addEventListener("input", keep); ib.addEventListener("input", keep);
       const colon = document.createElement("span"); colon.textContent = ":";
       const btn = document.createElement("button"); btn.textContent = "Lưu";
-      btn.onclick = () => saveScore(m.id, ia.value, ib.value, btn);
+      btn.onclick = () => saveScore(m, ia.value, ib.value, btn);
       [ia, ib].forEach((x) => x.addEventListener("keydown", (e) => { if (e.key === "Enter") btn.click(); }));
       row.append(ia, colon, ib, btn);
       li.appendChild(row);
@@ -750,9 +820,9 @@
     return li;
   }
 
-  /* ---------- Ban tổ chức nhập tỉ số ---------- */
+  /* ---------- Nhập tỉ số (ai cũng nhập được) ---------- */
   function renderAdmin() {
-    const sig = (matches.length > 0) + "|" + adminOn + "|" + adminOpen;
+    const sig = (matches.length > 0) + "|" + editOn;
     if (sig === adminSig) return;
     adminSig = sig;
     const box = $("admin");
@@ -760,53 +830,389 @@
     if (!matches.length) { box.style.display = "none"; return; }
     box.style.display = "flex";
 
-    if (adminOn) {
+    const b = document.createElement("button");
+    b.className = "link-btn";
+    if (editOn) {
       const t = document.createElement("div");
-      t.className = "hint ok"; t.textContent = "Đã mở khóa. Nhập tỉ số vào từng trận rồi bấm Lưu.";
-      const b = document.createElement("button");
-      b.className = "link-btn"; b.textContent = "Khóa lại"; b.onclick = lockAdmin;
+      t.className = "hint ok"; t.textContent = "Nhập tỉ số vào từng trận rồi bấm Lưu. Để trống cả hai ô rồi Lưu là xóa tỉ số.";
+      b.textContent = "Xong, ẩn ô nhập";
+      b.onclick = () => setEdit(false);
       box.append(t, b);
-      return;
-    }
-    if (!adminOpen) {
-      const b = document.createElement("button");
-      b.className = "link-btn"; b.textContent = "Ban tổ chức nhập tỉ số";
-      b.onclick = () => { adminOpen = true; renderAdmin(); const i = $("admin").querySelector("input"); if (i) i.focus(); };
+    } else {
+      b.textContent = "Nhập tỉ số";
+      b.onclick = () => setEdit(true);
       box.appendChild(b);
-      return;
     }
-    const row = document.createElement("div"); row.className = "row2";
-    const inp = document.createElement("input");
-    inp.type = "password"; inp.placeholder = "Mã ban tổ chức"; inp.autocomplete = "off";
-    const go = document.createElement("button"); go.textContent = "Mở khóa";
-    const err = document.createElement("div"); err.className = "hint";
-    const submit = async () => {
-      if (!inp.value.trim()) return;
-      go.disabled = true;
-      const { data, error } = await db.rpc("check_admin", { p_pin: inp.value.trim() });
-      go.disabled = false;
-      if (error) { err.textContent = "Lỗi kết nối, thử lại nha."; return; }
-      if (data === true) {
-        adminOn = true; adminPin = inp.value.trim();
-        fxSig = ""; adminSig = "";
-        renderAdmin(); renderFixtures();
-      } else { err.textContent = "Sai mã rồi."; err.style.color = "var(--err)"; }
-    };
-    go.onclick = submit;
-    inp.addEventListener("keydown", (e) => { if (e.key === "Enter") submit(); });
-    row.append(inp, go);
-    const cancel = document.createElement("button");
-    cancel.className = "link-btn"; cancel.textContent = "Thôi, đóng lại";
-    cancel.onclick = () => { adminOpen = false; renderAdmin(); };
-    box.append(row, err, cancel);
   }
 
-  function lockAdmin() {
-    adminOn = false; adminOpen = false; adminPin = "";
-    Object.keys(drafts).forEach((k) => delete drafts[k]);
+  function setEdit(on) {
+    editOn = on;
+    if (!on) Object.keys(drafts).forEach((k) => delete drafts[k]);
     fxSig = ""; adminSig = "";
     renderAdmin(); renderFixtures();
   }
 
-  async function saveScore(id, a, b, btn) {
-    const ea = a === "" || a == null, eb = b === ""
+  async function saveScore(m, a, b, btn) {
+    const ea = a === "" || a == null, eb = b === "" || b == null;
+    if (ea !== eb) { toast("Nhập đủ tỉ số của cả hai đội, hoặc để trống cả hai nhé.", "⚠️"); return; }
+    const pa = ea ? null : parseInt(a, 10), pb = eb ? null : parseInt(b, 10);
+    if (!ea && (isNaN(pa) || isNaN(pb) || pa < 0 || pb < 0 || pa > 99 || pb > 99)) {
+      toast("Tỉ số phải là số từ 0 đến 99.", "⚠️"); return;
+    }
+    if (!ea && m.stage !== "group" && pa === pb) {
+      toast("Trận xếp hạng không được hòa, phải có đội thắng.", "⚠️"); return;
+    }
+    btn.disabled = true;
+    const { data, error } = await db.rpc("set_score", { p_match_id: m.id, p_a: pa, p_b: pb });
+    btn.disabled = false;
+    if (error || !data) { toast("Lỗi kết nối, thử lại nha.", "⚠️"); return; }
+    if (!data.ok) { toast(data.error, "⚠️"); return; }
+    delete drafts[m.id];
+    toast(pa == null ? "Đã xóa tỉ số trận này." : "Đã lưu tỉ số.", "✅");
+    await load();
+  }
+
+  /* ---------- Bảng xếp hạng và bục nhận giải ---------- */
+  function renderStandings() {
+    const sec = $("standSec");
+    if (!matches.length) { sec.style.display = "none"; return; }
+    sec.style.display = "";
+
+    const rows = standings();
+    const fin = isFinal();
+    const fr = finalRank();
+    const any = rows.some((r) => r.P > 0);
+    const sig = rows.map((r) => [r.id, r.P, r.Pts, r.GF, r.GA].join(":")).join("|") + "#" + fin + "#" + (fr ? fr.join(",") : "");
+    if (sig === stSig) return;
+    stSig = sig;
+
+    // Bục nhận giải chỉ hiện khi đã đánh xong tất cả các trận
+    const pod = $("podiumBox");
+    pod.innerHTML = "";
+    const order = fr || (fin ? rows.map((r) => r.id) : null);
+    if (order && order.length >= 3) {
+      const ptsOf = (id) => (rows.find((r) => r.id === id) || {}).Pts || 0;
+      const champ = document.createElement("p");
+      champ.className = "champ";
+      champ.textContent = "Chúc mừng " + teamText(order[0]) + " vô địch!";
+      const wrap = document.createElement("div");
+      wrap.className = "podium";
+      [1, 0, 2].forEach((k) => {
+        const id = order[k], t = team(id);
+        const st = document.createElement("div");
+        st.className = "pstep p" + (k + 1);
+        if (k === 0) { const cr = document.createElement("div"); cr.className = "crown"; cr.textContent = "👑"; st.appendChild(cr); }
+        const who = document.createElement("div"); who.className = "who";
+        who.textContent = t.cap;
+        const sp = document.createElement("span"); sp.textContent = "& " + t.mem;
+        who.appendChild(sp);
+        const pts = document.createElement("div"); pts.className = "pts";
+        pts.textContent = fr ? ["Vô địch", "Hạng nhì", "Hạng ba"][k] : ptsOf(id) + " điểm";
+        const blk = document.createElement("div"); blk.className = "blk"; blk.textContent = String(k + 1);
+        st.append(who, pts, blk);
+        wrap.appendChild(st);
+      });
+      pod.append(champ, wrap);
+    }
+
+    const tb = $("tbody");
+    tb.innerHTML = "";
+    rows.forEach((r, i) => {
+      const t = team(r.id);
+      const tr = document.createElement("tr");
+      tr.className = "row" + (any && i < 3 ? " r" + (i + 1) : "");
+      tr.style.setProperty("--i", i);
+      const diff = r.GF - r.GA;
+      const cells = [
+        ["rk", String(i + 1)],
+        ["tm", null],
+        ["", String(r.P)],
+        ["", (diff > 0 ? "+" : "") + diff],
+        ["pt", String(r.Pts)],
+      ];
+      cells.forEach(([cls, text]) => {
+        const td = document.createElement("td");
+        if (cls) td.className = cls;
+        if (cls === "tm") {
+          const b = document.createElement("b"); b.textContent = t.cap;
+          const sm = document.createElement("i"); sm.textContent = " & " + t.mem;
+          td.append(b, sm);
+        } else td.textContent = text;
+        tr.appendChild(td);
+      });
+      tb.appendChild(tr);
+    });
+  }
+
+  function render() {
+    renderWindow();
+    renderBoard();
+    renderFixtures();
+    renderAdmin();
+    renderStandings();
+    updateButton();
+  }
+
+  function showMsg(text, kind) {
+    const el = $("msg");
+    el.textContent = text;
+    el.className = "msg" + (kind ? " " + kind : "");
+  }
+
+  function updateButton() {
+    const typed = $("name").value;
+    const cap = matchCaptain(typed);
+    const st = windowState();
+    $("drawBtn").disabled = !(loaded && typed.trim() && st === "open" && !drawing && !(cap && hasDrawn(cap.id)));
+
+    const hint = $("hint");
+    if (cap && !hasDrawn(cap.id)) { hint.textContent = "Chào " + cap.name + "! Sẵn sàng thì bấm bốc nha."; hint.className = "hint ok"; }
+    else { hint.textContent = DEFAULT_HINT; hint.className = "hint"; }
+
+    if (cap && hasDrawn(cap.id) && !drawing) {
+      const pair = pairs.find((p) => p.captain_id === cap.id);
+      showMsg(cap.name + " bốc rồi nha, partner là " + memberName(pair.member_id) + ". Hết cơ hội, chịu thôi!", "ok");
+    }
+  }
+
+  function toast(text, icon) {
+    const t = document.createElement("div");
+    t.className = "toast"; t.textContent = (icon || "🎉") + " " + text;
+    $("toasts").appendChild(t);
+    setTimeout(() => { t.classList.add("out"); setTimeout(() => t.remove(), 400); }, 4800);
+  }
+
+  /* ---------- Âm thanh nhỏ cho có không khí ---------- */
+  let ac;
+  function tone(freq, dur, vol, type, when) {
+    try {
+      ac = ac || new (window.AudioContext || window.webkitAudioContext)();
+      if (ac.state === "suspended") ac.resume();
+      const t = ac.currentTime + (when || 0);
+      const o = ac.createOscillator(), g = ac.createGain();
+      o.type = type || "square"; o.frequency.value = freq;
+      g.gain.setValueAtTime(vol || 0.05, t);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      o.connect(g); g.connect(ac.destination);
+      o.start(t); o.stop(t + dur);
+    } catch (e) {}
+  }
+  const fanfare = () => [523, 659, 784, 1046].forEach((f, i) => tone(f, 0.35, 0.07, "triangle", i * 0.12));
+
+  /* ---------- Pháo hoa và giấy confetti ---------- */
+  const cv = $("fx"), cx = cv.getContext("2d");
+  const COLORS = ["#ffc531", "#ff4d6d", "#4dd2ff", "#7cff6b", "#c77dff", "#ffffff", "#ff9f1c"];
+  let W = 0, H = 0, parts = [], fxOn = false, fxEnd = 0, lastBurst = 0, lastRain = 0, raf = 0;
+  const rnd = (a, b) => a + Math.random() * (b - a);
+  const pick = () => COLORS[(Math.random() * COLORS.length) | 0];
+
+  function resize() {
+    const dpr = window.devicePixelRatio || 1;
+    W = window.innerWidth; H = window.innerHeight;
+    cv.width = W * dpr; cv.height = H * dpr;
+    cx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+  window.addEventListener("resize", resize);
+  resize();
+
+  function burst(x, y) {
+    const n = 70, c1 = pick(), c2 = pick();
+    for (let i = 0; i < n; i++) {
+      const a = (Math.PI * 2 * i) / n + rnd(-0.05, 0.05), s = rnd(2, 7);
+      parts.push({ k: "s", x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, g: 0.07,
+        life: 0, max: rnd(55, 90), c: i % 2 ? c1 : c2, r: rnd(1.5, 3) });
+    }
+  }
+  function rain(n) {
+    for (let i = 0; i < n; i++) {
+      parts.push({ k: "c", x: rnd(0, W), y: rnd(-40, -5), vx: rnd(-1, 1), vy: rnd(2, 5), g: 0.02,
+        life: 0, max: rnd(120, 220), c: pick(), w: rnd(6, 11), h: rnd(4, 7), rot: rnd(0, 6.28), vr: rnd(-0.2, 0.2) });
+    }
+  }
+  function frame(t) {
+    cx.clearRect(0, 0, W, H);
+    if (fxOn) {
+      if (t > fxEnd) fxOn = false;
+      else {
+        if (t - lastBurst > 320) { burst(rnd(W * 0.15, W * 0.85), rnd(H * 0.12, H * 0.55)); lastBurst = t; }
+        if (t - lastRain > 90) { rain(6); lastRain = t; }
+      }
+    }
+    parts = parts.filter((p) => p.life < p.max);
+    for (const p of parts) {
+      p.life++; p.vy += p.g; p.x += p.vx; p.y += p.vy;
+      cx.globalAlpha = Math.max(0, 1 - p.life / p.max);
+      cx.fillStyle = p.c;
+      if (p.k === "s") {
+        p.vx *= 0.985;
+        cx.beginPath(); cx.arc(p.x, p.y, p.r, 0, 6.283); cx.fill();
+      } else {
+        p.rot += p.vr; p.x += Math.sin(p.life / 8) * 0.6;
+        cx.save(); cx.translate(p.x, p.y); cx.rotate(p.rot);
+        cx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h); cx.restore();
+      }
+    }
+    cx.globalAlpha = 1;
+    raf = (fxOn || parts.length) ? requestAnimationFrame(frame) : 0;
+  }
+  function startFx(ms) {
+    if (reduce) return;
+    fxOn = true; fxEnd = performance.now() + ms; lastBurst = 0; lastRain = 0;
+    burst(W / 2, H * 0.35);
+    if (!raf) raf = requestAnimationFrame(frame);
+  }
+  function stopFx() { fxOn = false; parts = []; }
+
+  /* ---------- Hỏi lại trước khi bốc ---------- */
+  function askConfirm(cap) {
+    return new Promise((resolve) => {
+      $("cfTitle").textContent = cap.name + " đã sẵn sàng chọn partner cùi bắp của mình chưa?";
+      const modal = $("confirm");
+      modal.classList.add("show");
+      $("cfYes").focus();
+      const onKey = (e) => { if (e.key === "Escape") done(false); };
+      const done = (v) => {
+        modal.classList.remove("show");
+        $("cfYes").onclick = null; $("cfNo").onclick = null;
+        document.removeEventListener("keydown", onKey);
+        resolve(v);
+      };
+      document.addEventListener("keydown", onKey);
+      $("cfYes").onclick = () => done(true);
+      $("cfNo").onclick = () => done(false);
+    });
+  }
+
+  function closeStage() {
+    $("stage").classList.remove("show", "flash");
+    document.body.style.overflow = "";
+    stopFx();
+  }
+
+  /* ---------- Màn bốc thăm ---------- */
+  async function runDraw(typed, cap) {
+    const stage = $("stage"), nameEl = $("stName"), big = $("stBig"), line = $("stLine"), ask = $("stAsk");
+    ownCaptainId = cap.id;
+    nameEl.textContent = ""; nameEl.className = "name";
+    big.textContent = ""; line.textContent = "";
+    ask.classList.remove("show");
+    stage.classList.add("show");
+    if (!reduce) stage.classList.add("flash");
+    document.body.style.overflow = "hidden";
+
+    // Gọi server ngay, kết quả đã được chốt dù màn hình còn đang đếm ngược
+    const rpc = db.rpc("draw_partner", { p_name: typed });
+
+    const quips = { 3: "Đang xào bài cho công bằng…", 2: "Đang xin ý kiến ông trời…", 1: "Run chưa anh?" };
+    for (const n of [3, 2, 1]) {
+      big.textContent = n; line.textContent = quips[n];
+      big.classList.remove("pop"); void big.offsetWidth; big.classList.add("pop");
+      tone(260 + (3 - n) * 90, 0.14, 0.06);
+      await sleep(950);
+    }
+    big.textContent = "";
+
+    let res = null;
+    try { const r = await rpc; res = r.error ? null : r.data; } catch (e) { res = null; }
+    if (!res || !res.ok) {
+      closeStage();
+      drawing = false; ownCaptainId = null;
+      showMsg(res ? res.error : "Có lỗi kết nối. Kiểm tra mạng rồi thử lại nha.", "err");
+      await load();
+      return;
+    }
+
+    // Quay tên, chậm dần rồi dừng đúng người được chọn
+    line.textContent = "Partner định mệnh của " + res.captain_name + " là…";
+    const pool = members.map((m) => m.name);
+    let i = Math.floor(Math.random() * Math.max(pool.length, 1)), delay = 70;
+    while (pool.length && delay < 480) {
+      nameEl.textContent = pool[i++ % pool.length];
+      tone(480 + (i % 4) * 90, 0.05, 0.04);
+      await sleep(delay);
+      delay *= 1.11;
+    }
+    nameEl.textContent = res.member_name;
+    nameEl.classList.add("done");
+    line.textContent = "Chúc mừng (hoặc chia buồn) " + res.captain_name + "!";
+    fanfare();
+    startFx(8000);
+    if (!reduce) setTimeout(() => $("stage").classList.remove("flash"), 8000);
+
+    await sleep(reduce ? 300 : 2200);
+    $("stAskText").textContent = res.captain_name + " ơi, anh có hối hận không?";
+    ask.classList.add("show");
+    $("stBtn").focus();
+    await new Promise((resolve) => { $("stBtn").onclick = resolve; });
+
+    closeStage();
+    drawing = false;
+    showMsg(res.complete
+      ? "Đủ cặp rồi! Trận đã được chia, xem lịch thi đấu bên dưới nha."
+      : "Xong rồi nha, không đổi được nữa đâu. Chịu khó thương nhau đi!", "ok");
+    await load();
+    if (!reduce) {
+      const target = matches.length ? $("fixturesSec") : $("board");
+      target.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }
+
+  async function onDraw() {
+    const typed = $("name").value.trim();
+    if (!typed || drawing) return;
+    const cap = matchCaptain(typed);
+    if (!cap) {
+      showMsg("Tên chưa đúng rồi anh ơi, gõ lại đúng tên đội trưởng nha.", "err");
+      return;
+    }
+    if (hasDrawn(cap.id)) return;
+
+    drawing = true; updateButton();
+    const ok = await askConfirm(cap);
+    if (!ok) {
+      drawing = false; updateButton();
+      showMsg("Ok, cứ hít thở cho đã rồi quay lại bấm nha.", "");
+      return;
+    }
+    await runDraw(typed, cap);
+  }
+
+  /* ---------- Sự kiện ---------- */
+  $("name").addEventListener("input", () => { showMsg(""); updateButton(); });
+  $("name").addEventListener("keydown", (e) => { if (e.key === "Enter") onDraw(); });
+  $("drawBtn").addEventListener("click", onDraw);
+
+  // Ánh sáng chạy theo con trỏ trên thẻ kính
+  document.querySelectorAll(".glass").forEach((el) => {
+    el.addEventListener("pointermove", (e) => {
+      const r = el.getBoundingClientRect();
+      el.style.setProperty("--mx", (e.clientX - r.left) + "px");
+      el.style.setProperty("--my", (e.clientY - r.top) + "px");
+    });
+  });
+
+  // Đồng hồ đếm ngược chạy mỗi giây, mở khóa nút khi đến giờ
+  setInterval(() => {
+    renderWindow();
+    if (!loaded) return;
+    const st = windowState();
+    if (st !== lastState) { lastState = st; updateButton(); }
+  }, 1000);
+
+  // Gộp nhiều sự kiện realtime liên tiếp thành một lần tải
+  let loadTimer = 0;
+  const scheduleLoad = () => { clearTimeout(loadTimer); loadTimer = setTimeout(load, 250); };
+
+  load();
+  db.channel("live-changes")
+    .on("postgres_changes", { event: "*", schema: "public", table: "pairs" }, scheduleLoad)
+    .on("postgres_changes", { event: "*", schema: "public", table: "matches" }, scheduleLoad)
+    .subscribe((status) => {
+      const on = status === "SUBSCRIBED";
+      $("live").classList.toggle("on", on);
+      $("liveTxt").textContent = on ? "Trực tiếp" : "Tự làm mới";
+    });
+  setInterval(() => { if (!drawing) load(); }, 8000);
+</script>
+</body>
+</html>
