@@ -239,6 +239,9 @@
   .admin { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--line); display: none; flex-direction: column; gap: 10px; }
   button.link-btn { background: none; border: 0; padding: 0; color: var(--muted); text-decoration: underline; align-self: flex-start; }
   button.link-btn:hover { color: var(--ink); }
+  .tools { display: flex; flex-wrap: wrap; gap: 8px 18px; }
+  button.link-btn.danger { color: #c98a8a; font-size: .9rem; }
+  button.link-btn.danger:hover { color: var(--err); }
 
   /* ---------- Bảng xếp hạng và bục nhận giải ---------- */
   .podium { display: grid; grid-template-columns: 1fr 1.15fr 1fr; align-items: end; gap: 10px; margin: 6px 0 22px; }
@@ -362,7 +365,7 @@
 <main>
   <header class="hero">
     <h1>Bốc thăm ghép cặp</h1>
-    <p class="sub">Mỗi đội trưởng chỉ được bốc một lần thôi nha. Bốc xong là hết cơ hội, không có nút đổi ý đâu.</p>
+    <p class="sub">Mỗi đội trưởng bốc một lần, không đổi ý.</p>
   </header>
 
   <div class="status" id="window">
@@ -394,7 +397,6 @@
       <h2>Lịch thi đấu</h2>
       <span class="chip" id="fxChip">Chưa chia</span>
     </div>
-    <p class="subt">Đủ cặp là tự chia trận ngẫu nhiên, mỗi cặp đánh với đủ các cặp còn lại. Đánh xong vòng tròn thì Nhất đánh với Nhì tranh vô địch, Ba đánh với Tư tranh hạng ba.</p>
     <div id="fixtures"></div>
     <div class="admin" id="admin"></div>
   </section>
@@ -407,7 +409,7 @@
       <thead><tr><th></th><th>Đội</th><th>Trận</th><th>Hiệu số</th><th>Điểm</th></tr></thead>
       <tbody id="tbody"></tbody>
     </table>
-    <p class="note">Thắng 3 điểm, hòa 1 điểm, thua 0 điểm. Bằng điểm thì xét hiệu số, rồi tổng điểm ghi được, vẫn bằng nữa thì ai bốc thăm trước xếp trên. Đánh xong vòng tròn: Nhất đánh với Nhì tranh vô địch, Ba đánh với Tư tranh hạng ba. Hai trận này không được hòa.</p>
+    <p class="note">Thắng 3, hòa 1, thua 0.</p>
   </section>
 
   <footer>
@@ -422,7 +424,7 @@
 <div class="modal" id="confirm" role="dialog" aria-modal="true" aria-labelledby="cfTitle">
   <div class="card">
     <h3 id="cfTitle"></h3>
-    <p>Lưu ý: chỉ được bốc <b>MỘT lần</b> thôi nha anh. Bấm rồi là hết đường lui, khóc cũng không bốc lại được đâu.</p>
+    <p id="cfText"></p>
     <div class="row">
       <button class="draw" id="cfYes">Sẵn sàng, bốc luôn!</button>
       <button class="ghost" id="cfNo">Khoan, cho em hít thở cái</button>
@@ -454,7 +456,7 @@
   let loadErr = "";       // lỗi kết nối gần nhất, hiện ở ô trạng thái
   const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-  const DEFAULT_HINT = "Gõ đúng tên là được, không cần đúng dấu hay chữ hoa.";
+  const DEFAULT_HINT = "Không cần dấu hay chữ hoa.";
   const KO_LABEL = {
     final: ["🏆 Chung kết", "Nhất đánh với Nhì"],
     third: ["🥉 Tranh hạng ba", "Ba đánh với Tư"],
@@ -746,7 +748,7 @@
       const missing = Math.max(0, captains.length - pairs.length);
       box.appendChild(lockedBox(
         missing ? "Còn thiếu " + missing + " cặp nữa" : "Đang chia trận…",
-        "Bốc đủ " + captains.length + " cặp là hệ thống tự chia trận ngay, mỗi cặp đánh với đủ các cặp còn lại."
+        "Đủ cặp là tự chia trận."
       ));
       return;
     }
@@ -775,7 +777,7 @@
       const left = gm.filter((m) => !isPlayed(m)).length;
       box.appendChild(lockedBox(
         left ? "Còn " + left + " trận vòng tròn nữa" : "Đang xếp trận…",
-        "Đánh xong " + gm.length + " trận vòng tròn là có ngay: Nhất đánh với Nhì tranh vô địch, Ba đánh với Tư tranh hạng ba."
+        "Xong thì Nhất gặp Nhì, Ba gặp Tư."
       ));
       return;
     }
@@ -845,27 +847,49 @@
 
   /* ---------- Nhập tỉ số (ai cũng nhập được) ---------- */
   function renderAdmin() {
-    const sig = (matches.length > 0) + "|" + editOn;
+    const scored = matches.some(isPlayed);
+    const sig = matches.length + "|" + pairs.length + "|" + scored + "|" + editOn;
     if (sig === adminSig) return;
     adminSig = sig;
     const box = $("admin");
     box.innerHTML = "";
-    if (!matches.length) { box.style.display = "none"; return; }
+    if (!pairs.length && !matches.length) { box.style.display = "none"; return; }
     box.style.display = "flex";
 
-    const b = document.createElement("button");
-    b.className = "link-btn";
+    const btn = (text, fn, danger) => {
+      const b = document.createElement("button");
+      b.className = "link-btn" + (danger ? " danger" : "");
+      b.textContent = text; b.onclick = fn;
+      return b;
+    };
     if (editOn) {
       const t = document.createElement("div");
-      t.className = "hint ok"; t.textContent = "Nhập tỉ số vào từng trận rồi bấm Lưu. Để trống cả hai ô rồi Lưu là xóa tỉ số.";
-      b.textContent = "Xong, ẩn ô nhập";
-      b.onclick = () => setEdit(false);
-      box.append(t, b);
-    } else {
-      b.textContent = "Nhập tỉ số";
-      b.onclick = () => setEdit(true);
-      box.appendChild(b);
+      t.className = "hint ok"; t.textContent = "Để trống cả hai ô rồi Lưu là xóa tỉ số.";
+      box.appendChild(t);
     }
+    const row = document.createElement("div"); row.className = "tools";
+    if (matches.length) row.appendChild(btn(editOn ? "Xong, ẩn ô nhập" : "Nhập tỉ số", () => setEdit(!editOn)));
+    if (scored) row.appendChild(btn("↺ Reset tỉ số", resetScores, true));
+    row.appendChild(btn("↺ Reset bốc thăm", resetAll, true));
+    box.appendChild(row);
+  }
+
+  async function runReset(fn, okText) {
+    const { data, error } = await db.rpc(fn);
+    if (error || !data || !data.ok) { toast("Không reset được, thử lại nha.", "⚠️"); return; }
+    Object.keys(drafts).forEach((k) => delete drafts[k]);
+    editOn = false; ownCaptainId = null; showMsg("");
+    fxSig = ""; stSig = ""; adminSig = ""; fxBuilt = false; wasFinal = false;
+    toast(okText, "✅");
+    await load();
+  }
+  async function resetScores() {
+    const ok = await askModal("Xóa hết tỉ số?", "Giữ nguyên cặp và lịch thi đấu, chỉ xóa tỉ số.", "Xóa tỉ số", "Thôi");
+    if (ok) runReset("reset_scores", "Đã xóa hết tỉ số.");
+  }
+  async function resetAll() {
+    const ok = await askModal("Bốc lại từ đầu?", "Xóa hết cặp đã bốc, lịch thi đấu và tỉ số.", "Xóa hết, bốc lại", "Thôi");
+    if (ok) runReset("reset_all", "Đã xóa hết, bốc lại từ đầu được rồi.");
   }
 
   function setEdit(on) {
@@ -917,7 +941,7 @@
       const ptsOf = (id) => (rows.find((r) => r.id === id) || {}).Pts || 0;
       const champ = document.createElement("p");
       champ.className = "champ";
-      champ.textContent = "Chúc mừng " + teamText(order[0]) + " vô địch!";
+      champ.textContent = "Nhà vô địch: " + teamText(order[0]);
       const wrap = document.createElement("div");
       wrap.className = "podium";
       [1, 0, 2].forEach((k) => {
@@ -1088,8 +1112,15 @@
 
   /* ---------- Hỏi lại trước khi bốc ---------- */
   function askConfirm(cap) {
+    return askModal(cap.name + " đã sẵn sàng chọn partner cùi bắp của mình chưa?",
+      "Chỉ bốc một lần, bấm là hết đường lui.", "Sẵn sàng, bốc luôn!", "Khoan, cho em hít thở cái");
+  }
+  function askModal(title, text, yes, no) {
     return new Promise((resolve) => {
-      $("cfTitle").textContent = cap.name + " đã sẵn sàng chọn partner cùi bắp của mình chưa?";
+      $("cfTitle").textContent = title;
+      $("cfText").textContent = text;
+      $("cfYes").textContent = yes;
+      $("cfNo").textContent = no;
       const modal = $("confirm");
       modal.classList.add("show");
       $("cfYes").focus();
@@ -1157,7 +1188,7 @@
     }
     nameEl.textContent = res.member_name;
     nameEl.classList.add("done");
-    line.textContent = "Chúc mừng (hoặc chia buồn) " + res.captain_name + "!";
+    line.textContent = "Xin chia buồn cùng " + res.captain_name + "!";
     fanfare();
     startFx(8000);
     if (!reduce) setTimeout(() => $("stage").classList.remove("flash"), 8000);
